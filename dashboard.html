@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial;
+      margin: 0;
+      padding: 20px;
+      background: #f7f9fc;
+    }
+    h2 {
+      margin-bottom: 10px;
+    }
+    .chart-container {
+      background: white;
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 40px;
+      width: 100%;
+      height: 300px;
+      position: relative;
+    }
+  </style>
+</head>
+<body>
+
+<h2>📈 Cumulative Scores</h2>
+<div class="chart-container">
+  <canvas id="scoreChart"></canvas>
+</div>
+
+<h2>🏆 Rank Over Time (Bump Chart)</h2>
+<div class="chart-container">
+  <canvas id="rankChart"></canvas>
+</div>
+
+<script>
+let scoreChart, rankChart;
+let selectedIndices = new Set(); // Track which players are selected
+
+google.script.run.withSuccessHandler(drawCharts).withFailureHandler(err => {
+  document.body.innerHTML += '<p style="color:red">Error: ' + err.message + '</p>';
+}).getGameData();
+
+function drawCharts(res) {
+  const players = res.players;
+  const data = res.data;
+
+  // Convert time values to strings safely
+  const labels = data.map((d, i) => {
+    const t = d.time;
+    if (!t) return 'Game ' + (i + 1);
+    if (typeof t === 'string') return t;
+    if (typeof t === 'object' && t.toString) return t.toString();
+    return 'Game ' + (i + 1);
+  });
+
+  const colors = [
+    "#1f77b4","#ff7f0e","#2ca02c","#d62728","#9467bd",
+    "#8c564b","#e377c2","#7f7f7f","#bcbd22","#17becf"
+  ];
+
+  // Initialize with all players visible
+  for (let i = 0; i < players.length; i++) {
+    selectedIndices.add(i);
+  }
+
+  // =========================
+  // CUMULATIVE SCORE CHART
+  // =========================
+  const scoreDatasets = players.map((p, i) => ({
+    label: p,
+    data: data.map(d => d.cumulative[i]),
+    borderColor: colors[i % colors.length],
+    backgroundColor: colors[i % colors.length],
+    fill: false,
+    tension: 0.2,
+    pointRadius: 2,
+    hidden: false
+  }));
+
+  scoreChart = new Chart(document.getElementById("scoreChart"), {
+    type: "line",
+    data: { labels, datasets: scoreDatasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { 
+          position: "bottom",
+          onClick: (e, legendItem, legend) => {
+            handleLegendClick(legendItem.datasetIndex);
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: {
+            maxTicksLimit: 10,
+            maxRotation: 45
+          }
+        }
+      }
+    }
+  });
+
+  // =========================
+  // RANK CHART (BUMP STYLE)
+  // =========================
+  const rankDatasets = players.map((p, i) => ({
+    label: p,
+    data: data.map(d => d.ranks[i]),
+    borderColor: colors[i % colors.length],
+    backgroundColor: colors[i % colors.length],
+    fill: false,
+    tension: 0.2,
+    pointRadius: 2,
+    hidden: false
+  }));
+
+  rankChart = new Chart(document.getElementById("rankChart"), {
+    type: "line",
+    data: { labels, datasets: rankDatasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          reverse: true,
+          ticks: { stepSize: 1 },
+          title: { display: true, text: "Rank (1 = Best)" }
+        },
+        x: {
+          ticks: {
+            maxTicksLimit: 10,
+            maxRotation: 45
+          }
+        }
+      },
+      plugins: {
+        legend: { 
+          position: "bottom",
+          onClick: (e, legendItem, legend) => {
+            handleLegendClick(legendItem.datasetIndex);
+          }
+        }
+      }
+    }
+  });
+}
+
+function handleLegendClick(index) {
+  // Toggle selection
+  if (selectedIndices.has(index)) {
+    selectedIndices.delete(index);
+  } else {
+    selectedIndices.add(index);
+  }
+
+  // If nothing is selected, show all
+  if (selectedIndices.size === 0) {
+    for (let i = 0; i < scoreChart.data.datasets.length; i++) {
+      selectedIndices.add(i);
+    }
+  }
+
+  // Update visibility for both charts
+  scoreChart.data.datasets.forEach((dataset, i) => {
+    const shouldShow = selectedIndices.has(i);
+    scoreChart.getDatasetMeta(i).hidden = !shouldShow;
+    rankChart.getDatasetMeta(i).hidden = !shouldShow;
+  });
+
+  scoreChart.update();
+  rankChart.update();
+}
+</script>
+
+</body>
+</html>
