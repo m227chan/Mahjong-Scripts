@@ -4,11 +4,19 @@
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu("🀄 Mahjong Club Menu")
+    .addItem("📊 Main Dashboard", "showMainDashboard")
     .addItem("Add New Game", "addNewGame")
     .addItem("Add New Player", "addNewPlayer")
     .addSeparator()
-    .addItem("📊 View Dashboard", "showDashboard")
+    .addItem("🎯 Legacy Dashboard", "showDashboard")
     .addToUi();
+}
+
+function showMainDashboard() {
+  const html = HtmlService.createHtmlOutputFromFile("index.html")
+    .setWidth(1400)
+    .setHeight(900);
+  SpreadsheetApp.getUi().showModelessDialog(html, "🀄 Mahjong Club Dashboard");
 }
 
 function addNewPlayer() {
@@ -397,4 +405,188 @@ function getGameData() {
   });
 
   return { players: headers, data: result };
+}
+
+// ============================================================
+// NEW: Get Complete Leaderboard Data
+// ============================================================
+function getLeaderboardData() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const lbSheet = ss.getSheetByName("Leaderboard");
+    const gsSheet = ss.getSheetByName("Game Scores");
+    
+    const lbData = lbSheet.getDataRange().getValues();
+    const headers = lbData[0]; // [Title, Player Name, Total Score, Rank, Games Played, Wins, Losses, Win/Loss Ratio, Ratio Rank, Highest, Lowest]
+    const rows = lbData.slice(1); // All player rows
+    
+    const result = rows.map(row => ({
+      title: row[0] || "Novice",
+      player: row[1] || "",
+      totalScore: Number(row[2]) || 0,
+      rank: Number(row[3]) || 0,
+      gamesPlayed: Number(row[4]) || 0,
+      wins: Number(row[5]) || 0,
+      losses: Number(row[6]) || 0,
+      winLossRatio: Number(row[7]) || 0,
+      ratioRank: Number(row[8]) || 0,
+      highestGame: Number(row[9]) || 0,
+      lowestGame: Number(row[10]) || 0
+    }));
+    
+    // Sort by rank (ascending)
+    result.sort((a, b) => a.rank - b.rank);
+    
+    return {
+      success: true,
+      data: result,
+      totalPlayers: result.length,
+      totalGames: gsSheet.getLastRow() - 2 // Exclude header and totals row
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+// ============================================================
+// NEW: Get All Game Data Combined
+// ============================================================
+function getAllGameData() {
+  try {
+    const gameData = getGameData();
+    const leaderboardResult = getLeaderboardData();
+    
+    if (!leaderboardResult.success) {
+      throw new Error(leaderboardResult.error);
+    }
+    
+    return {
+      success: true,
+      players: gameData.players,
+      gameData: gameData.data,
+      leaderboard: leaderboardResult.data,
+      totalPlayers: leaderboardResult.totalPlayers,
+      totalGames: leaderboardResult.totalGames
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+// ============================================================
+// NEW: Submit New Player (Wrapper with error handling)
+// ============================================================
+function submitNewPlayer(playerName) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const gamesSheet = ss.getSheetByName("Game Scores");
+    const leaderboardSheet = ss.getSheetByName("Leaderboard");
+    
+    // Validation
+    const trimmedName = playerName.trim();
+    if (!trimmedName) {
+      return {
+        success: false,
+        error: "Player name cannot be empty."
+      };
+    }
+    
+    // Check for duplicates
+    const lastCol = gamesSheet.getLastColumn();
+    const headers = gamesSheet.getRange(1, 2, 1, lastCol - 1).getValues()[0];
+    const existingPlayers = headers.filter(h => h !== "");
+    
+    if (existingPlayers.some(p => p.toLowerCase() === trimmedName.toLowerCase())) {
+      return {
+        success: false,
+        error: "Player already exists."
+      };
+    }
+    
+    // --- Update Game Scores sheet ---
+    const lastDataRow = gamesSheet.getLastRow();
+    gamesSheet.getRange(1, lastCol + 1).setValue(trimmedName);
+    
+    const newColLetter = columnToLetter(lastCol + 1);
+    gamesSheet.getRange(lastDataRow, lastCol + 1).setFormula(
+      `=SUM(Games[${trimmedName}])`
+    );
+    
+    // --- Update Leaderboard sheet ---
+    const lbLastRow = leaderboardSheet.getLastRow();
+    const newLbRow = lbLastRow + 1;
+    
+    // Column A: Title (dynamic formula)
+    leaderboardSheet.getRange(newLbRow, 1).setFormula(
+      '=LET(rank,INDIRECT("D"&ROW()),total,COUNTA(D:D)-1,IF(rank=1,"Messiah",IF(OR(rank=2,rank=3),"Master",IF(AND(rank>=4,rank<=6),"Magician",IF(rank=total,"Moron",IF(OR(rank=total-1,rank=total-2),"Mongrel",IF(AND(rank>=total-5,rank<=total-3),"Minion","Monk")))))))'
+    );
+    
+    // Column B: Player Name
+    leaderboardSheet.getRange(newLbRow, 2).setValue(trimmedName);
+    
+    // Column C: Total Score
+    leaderboardSheet.getRange(newLbRow, 3).setFormula(
+      `=INDIRECT("'Game Scores'!" & ADDRESS(MATCH("Totals", 'Game Scores'!A:A, 0), MATCH(B${newLbRow}, 'Game Scores'!1:1, 0)))`
+    );
+    
+    // Column D: Total Score Rank - Update ALL rows
+    for (let r = 2; r <= newLbRow; r++) {
+      leaderboardSheet.getRange(r, 4).setFormula(
+        `=RANK(C${r}, C$2:C$${newLbRow}, FALSE)`
+      );
+    }
+    
+    // Column E: Games Played
+    leaderboardSheet.getRange(newLbRow, 5).setFormula(
+      `=COUNTIF(INDEX(INDIRECT("'Game Scores'!$2:$"&(COUNTA('Game Scores'!A$2:A))), 0, MATCH(B${newLbRow}, 'Game Scores'!$1:$1, 0)), "<>")`
+    );
+    
+    // Column F: Games Won
+    leaderboardSheet.getRange(newLbRow, 6).setFormula(
+      `=COUNTIF(INDEX(INDIRECT("'Game Scores'!$2:$"&(COUNTA('Game Scores'!A:A)-1)), 0, MATCH(B${newLbRow}, 'Game Scores'!$1:$1, 0)), ">0")`
+    );
+    
+    // Column G: Games Lost
+    leaderboardSheet.getRange(newLbRow, 7).setFormula(
+      `=COUNTIF(INDEX(INDIRECT("'Game Scores'!$2:$"&(COUNTA('Game Scores'!A:A)-1)), 0, MATCH(B${newLbRow}, 'Game Scores'!$1:$1, 0)), "<0")`
+    );
+    
+    // Column H: Win / Loss Ratio
+    leaderboardSheet.getRange(newLbRow, 8).setFormula(
+      `=IF(G${newLbRow}=0, 0, F${newLbRow}/G${newLbRow})`
+    );
+    
+    // Column I: Win / Loss Ratio Rank
+    for (let r = 2; r <= newLbRow; r++) {
+      leaderboardSheet.getRange(r, 9).setFormula(
+        `=RANK(H${r}, H$2:H$${newLbRow}, FALSE)`
+      );
+    }
+    
+    // Column J: Highest Single Game
+    leaderboardSheet.getRange(newLbRow, 10).setFormula(
+      `=MAX(INDEX(INDIRECT("'Game Scores'!$2:$"&(COUNTA('Game Scores'!A:A)-1)), 0, MATCH(B${newLbRow}, 'Game Scores'!$1:$1, 0)))`
+    );
+    
+    // Column K: Lowest Single Game
+    leaderboardSheet.getRange(newLbRow, 11).setFormula(
+      `=MIN(INDEX(INDIRECT("'Game Scores'!$2:$"&(COUNTA('Game Scores'!A:A)-1)), 0, MATCH(B${newLbRow}, 'Game Scores'!$1:$1, 0)))`
+    );
+    
+    return {
+      success: true,
+      message: `Player "${trimmedName}" has been added successfully!`
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message
+    };
+  }
 }

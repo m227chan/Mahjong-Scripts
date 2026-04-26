@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🀄 Add New Player</title>
+  
+  <style>
+    /* CSS Variables */
+    :root {
+      --primary: #667eea;
+      --primary-dark: #5568d3;
+      --accent-success: #48bb78;
+      --accent-error: #f56565;
+      --accent-warning: #ed8936;
+      
+      --text-primary: #1a202c;
+      --text-secondary: #4a5568;
+      --text-muted: #718096;
+      
+      --bg-primary: #ffffff;
+      --bg-secondary: #f7fafc;
+      --bg-tertiary: #edf2f7;
+      
+      --border-color: #e2e8f0;
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+      --radius-md: 8px;
+      --transition: all 0.2s;
+    }
+
+    body.dark-mode {
+      --text-primary: #f7fafc;
+      --text-secondary: #e2e8f0;
+      --text-muted: #cbd5e0;
+      --bg-primary: #1a202c;
+      --bg-secondary: #2d3748;
+      --bg-tertiary: #4a5568;
+      --border-color: #4a5568;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 16px;
+      line-height: 1.5;
+      color: var(--text-primary);
+      background: var(--bg-primary);
+      transition: background 0.3s, color 0.3s;
+      padding: 24px;
+    }
+
+    h2 {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      font-size: 13px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      border: 2px solid var(--border-color);
+      border-radius: var(--radius-md);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      transition: var(--transition);
+      font-family: inherit;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    input.error {
+      border-color: var(--accent-error);
+      background-color: #fef2f2;
+    }
+
+    input.success {
+      border-color: var(--accent-success);
+    }
+
+    .validation-message {
+      font-size: 12px;
+      margin-top: 6px;
+      display: none;
+      font-weight: 500;
+    }
+
+    .validation-message.error {
+      display: block;
+      color: var(--accent-error);
+    }
+
+    .validation-message.success {
+      display: block;
+      color: var(--accent-success);
+    }
+
+    .character-count {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      text-align: right;
+    }
+
+    .info-box {
+      background: linear-gradient(135deg, #f0f9ff 0%, #f0f0ff 100%);
+      border: 1px solid var(--primary);
+      border-radius: var(--radius-md);
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      font-size: 13px;
+      color: var(--text-primary);
+    }
+
+    .info-label {
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 6px;
+    }
+
+    .existing-players {
+      display: none;
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .existing-players.show {
+      display: block;
+    }
+
+    .existing-players h3 {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+
+    .players-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      max-height: 150px;
+      overflow-y: auto;
+      padding: 8px;
+      background: var(--bg-secondary);
+      border-radius: var(--radius-md);
+    }
+
+    .player-badge {
+      background: var(--primary);
+      color: white;
+      padding: 6px 10px;
+      border-radius: 16px;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .error-message {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: var(--radius-md);
+      padding: 12px 16px;
+      margin-bottom: 16px;
+      color: #991b1b;
+      font-size: 13px;
+      font-weight: 500;
+      display: none;
+    }
+
+    .error-message.show {
+      display: block;
+    }
+
+    .error-message::before {
+      content: "⚠️ ";
+      margin-right: 6px;
+    }
+
+    .button-row {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border-color);
+    }
+
+    button {
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      border: none;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: var(--transition);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .btn-cancel {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      border: 1px solid var(--border-color);
+    }
+
+    .btn-cancel:hover {
+      background: var(--border-color);
+    }
+
+    .btn-submit {
+      background: var(--primary);
+      color: white;
+      min-width: 140px;
+    }
+
+    .btn-submit:hover:not(:disabled) {
+      background: var(--primary-dark);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .btn-submit:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      margin-right: 6px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .success-state {
+      display: none;
+      text-align: center;
+      padding: 40px 20px;
+    }
+
+    .success-state.show {
+      display: block;
+    }
+
+    .success-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+
+    .success-message {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .success-submessage {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    @media (max-width: 480px) {
+      body {
+        padding: 16px;
+      }
+
+      .button-row {
+        flex-direction: column;
+      }
+
+      button {
+        width: 100%;
+      }
+
+      .players-list {
+        max-height: 200px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h2>👤 Add New Player</h2>
+  <p class="subtitle">Register a new player to the Mahjong club</p>
+
+  <div class="info-box">
+    <div class="info-label">💡 Create Player Account</div>
+    Enter a player name to add them to the club. They'll automatically appear in the leaderboard and be eligible for future games.
+  </div>
+
+  <div class="error-message" id="errorMessage"></div>
+
+  <div class="form-group">
+    <label for="playerNameInput">Player Name</label>
+    <input 
+      type="text" 
+      id="playerNameInput" 
+      placeholder="Enter player's name" 
+      maxlength="50"
+      oninput="validateInput()"
+      onkeypress="handleKeyPress(event)"
+      autofocus
+    />
+    <div class="validation-message" id="validationMsg"></div>
+    <div class="character-count"><span id="charCount">0</span>/50</div>
+  </div>
+
+  <div class="existing-players" id="existingPlayers">
+    <h3>Current Players (<span id="playerCount">0</span>)</h3>
+    <div class="players-list" id="playersList"></div>
+  </div>
+
+  <div class="button-row">
+    <button class="btn-cancel" onclick="closeWindow()">Cancel</button>
+    <button class="btn-submit" id="submitBtn" onclick="submitPlayer()" disabled>
+      <span id="submitText">Add Player</span>
+    </button>
+  </div>
+
+  <div class="success-state" id="successState">
+    <div class="success-icon">✅</div>
+    <div class="success-message">Player Added Successfully!</div>
+    <div class="success-submessage">The player is now registered. Closing...</div>
+  </div>
+
+  <script>
+    let existingPlayers = [];
+    const MAX_NAME_LENGTH = 50;
+
+    async function initializePage() {
+      try {
+        const data = await callAppsScript('getGameData');
+        existingPlayers = data.players || [];
+        displayExistingPlayers();
+      } catch (error) {
+        showError('Failed to load players: ' + error.message);
+      }
+    }
+
+    function displayExistingPlayers() {
+      const container = document.getElementById('playersList');
+      const count = document.getElementById('playerCount');
+
+      if (existingPlayers.length === 0) {
+        container.innerHTML = '<p style="color: var(--text-muted); font-size: 12px;">No players yet.</p>';
+        document.getElementById('existingPlayers').classList.remove('show');
+      } else {
+        container.innerHTML = existingPlayers.map(p => 
+          `<div class="player-badge">${p}</div>`
+        ).join('');
+        count.textContent = existingPlayers.length;
+        document.getElementById('existingPlayers').classList.add('show');
+      }
+    }
+
+    function validateInput() {
+      const input = document.getElementById('playerNameInput');
+      const name = input.value.trim();
+      const msgEl = document.getElementById('validationMsg');
+      const btn = document.getElementById('submitBtn');
+
+      // Update character count
+      document.getElementById('charCount').textContent = name.length;
+
+      // Clear previous messages
+      msgEl.classList.remove('error', 'success');
+      input.classList.remove('error', 'success');
+      showErrorMessage('');
+
+      if (name.length === 0) {
+        btn.disabled = true;
+        return;
+      }
+
+      // Check for invalid characters
+      if (!/^[a-zA-Z0-9\s\-',.áàâäãåèéêëìíîïòóôöõùúûüçñ]+$/i.test(name)) {
+        msgEl.textContent = 'Player name contains invalid characters';
+        msgEl.classList.add('error');
+        input.classList.add('error');
+        btn.disabled = true;
+        return;
+      }
+
+      // Check for duplicates (case-insensitive)
+      const isDuplicate = existingPlayers.some(p => p.toLowerCase() === name.toLowerCase());
+      if (isDuplicate) {
+        msgEl.textContent = 'This player already exists';
+        msgEl.classList.add('error');
+        input.classList.add('error');
+        btn.disabled = true;
+        return;
+      }
+
+      // All validations passed
+      msgEl.textContent = '✓ Name is valid';
+      msgEl.classList.add('success');
+      input.classList.add('success');
+      btn.disabled = false;
+    }
+
+    function handleKeyPress(event) {
+      if (event.key === 'Enter') {
+        const btn = document.getElementById('submitBtn');
+        if (!btn.disabled) {
+          submitPlayer();
+        }
+      }
+    }
+
+    function showError(message) {
+      const errorEl = document.getElementById('errorMessage');
+      errorEl.textContent = message;
+      errorEl.classList.add('show');
+    }
+
+    function showErrorMessage(message) {
+      const errorEl = document.getElementById('errorMessage');
+      if (message) {
+        errorEl.textContent = message;
+        errorEl.classList.add('show');
+      } else {
+        errorEl.classList.remove('show');
+      }
+    }
+
+    async function submitPlayer() {
+      const input = document.getElementById('playerNameInput');
+      const name = input.value.trim();
+
+      showErrorMessage('');
+
+      // Re-validate before submitting
+      if (!name || name.length === 0) {
+        showError('Player name cannot be empty');
+        return;
+      }
+
+      const isDuplicate = existingPlayers.some(p => p.toLowerCase() === name.toLowerCase());
+      if (isDuplicate) {
+        showError('This player already exists');
+        return;
+      }
+
+      // Disable submit button and show loading
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+      document.getElementById('submitText').innerHTML = '<span class="spinner"></span>Adding...';
+
+      try {
+        const result = await callAppsScript('submitNewPlayer', name);
+        
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to add player');
+        }
+
+        // Show success state
+        document.querySelector('.form-group').style.display = 'none';
+        document.getElementById('existingPlayers').style.display = 'none';
+        document.querySelector('.button-row').style.display = 'none';
+        document.getElementById('successState').classList.add('show');
+
+        // Close window after 2 seconds
+        setTimeout(() => {
+          closeWindow();
+        }, 2000);
+      } catch (error) {
+        showError(error.message);
+        btn.disabled = false;
+        document.getElementById('submitText').textContent = 'Add Player';
+      }
+    }
+
+    function closeWindow() {
+      if (typeof google !== 'undefined' && google.script) {
+        google.script.host.close();
+      } else {
+        window.close();
+      }
+    }
+
+    function callAppsScript(functionName, ...args) {
+      return new Promise((resolve, reject) => {
+        try {
+          if (typeof google === 'undefined' || !google.script) {
+            reject(new Error('Google Apps Script environment not available'));
+            return;
+          }
+          
+          const runner = google.script.run
+            .withSuccessHandler(result => resolve(result))
+            .withFailureHandler(error => reject(new Error(error.message || 'Unknown error')));
+          
+          runner[functionName](...args);
+        } catch (error) {
+          reject(error);
+        }
+      });
+    }
+
+    // Initialize page
+    initializePage();
+    validateInput();
+  </script>
+</body>
+</html>

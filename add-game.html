@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🀄 Add New Game</title>
+  
+  <style>
+    /* CSS Variables */
+    :root {
+      --primary: #667eea;
+      --primary-dark: #5568d3;
+      --accent-success: #48bb78;
+      --accent-error: #f56565;
+      --accent-warning: #ed8936;
+      
+      --text-primary: #1a202c;
+      --text-secondary: #4a5568;
+      --text-muted: #718096;
+      
+      --bg-primary: #ffffff;
+      --bg-secondary: #f7fafc;
+      --bg-tertiary: #edf2f7;
+      
+      --border-color: #e2e8f0;
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+      --radius-md: 8px;
+      --transition: all 0.2s;
+    }
+
+    body.dark-mode {
+      --text-primary: #f7fafc;
+      --text-secondary: #e2e8f0;
+      --text-muted: #cbd5e0;
+      --bg-primary: #1a202c;
+      --bg-secondary: #2d3748;
+      --bg-tertiary: #4a5568;
+      --border-color: #4a5568;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 16px;
+      line-height: 1.5;
+      color: var(--text-primary);
+      background: var(--bg-primary);
+      transition: background 0.3s, color 0.3s;
+      padding: 24px;
+    }
+
+    h2 {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+    }
+
+    .instructions {
+      background: linear-gradient(135deg, #e8f0fe 0%, #f0e8fe 100%);
+      border-left: 4px solid var(--primary);
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      color: var(--text-primary);
+      line-height: 1.6;
+    }
+
+    .instructions strong {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--primary);
+      font-weight: 700;
+    }
+
+    .instructions ul {
+      margin: 4px 0 0 0;
+      padding-left: 20px;
+    }
+
+    .instructions li {
+      margin-bottom: 4px;
+    }
+
+    .player-section {
+      margin-bottom: 20px;
+    }
+
+    .player-section h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+
+    .player-input {
+      display: grid;
+      grid-template-columns: 1fr 100px;
+      gap: 8px;
+      margin-bottom: 12px;
+      align-items: end;
+    }
+
+    select,
+    input {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 14px;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      transition: var(--transition);
+      font-family: inherit;
+    }
+
+    select:focus,
+    input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    input.error-field {
+      border-color: var(--accent-error);
+      background-color: #fef2f2;
+    }
+
+    input[type="number"] {
+      font-family: 'Monaco', 'Courier New', monospace;
+      font-weight: 600;
+    }
+
+    .validation-feedback {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      font-size: 13px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .feedback-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .feedback-label {
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .feedback-value {
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .feedback-value.valid {
+      color: var(--accent-success);
+    }
+
+    .feedback-value.invalid {
+      color: var(--accent-error);
+    }
+
+    .error-message {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: var(--radius-md);
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      color: #991b1b;
+      font-size: 13px;
+      font-weight: 500;
+      display: none;
+    }
+
+    .error-message.show {
+      display: block;
+    }
+
+    .error-message::before {
+      content: "⚠️ ";
+      margin-right: 6px;
+    }
+
+    .button-row {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border-color);
+    }
+
+    button {
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      border: none;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: var(--transition);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .btn-cancel {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      border: 1px solid var(--border-color);
+    }
+
+    .btn-cancel:hover {
+      background: var(--border-color);
+    }
+
+    .btn-submit {
+      background: var(--primary);
+      color: white;
+      min-width: 120px;
+    }
+
+    .btn-submit:hover:not(:disabled) {
+      background: var(--primary-dark);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .btn-submit:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      margin-right: 6px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .success-state {
+      display: none;
+      text-align: center;
+      padding: 40px 20px;
+    }
+
+    .success-state.show {
+      display: block;
+    }
+
+    .success-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+
+    .success-message {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .success-submessage {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    @media (max-width: 480px) {
+      .player-input {
+        grid-template-columns: 1fr;
+      }
+
+      .validation-feedback {
+        grid-template-columns: 1fr;
+      }
+
+      .button-row {
+        flex-direction: column;
+      }
+
+      button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h2>🎮 Add New Game</h2>
+  <p class="subtitle">Record scores for a Mahjong game</p>
+
+  <div class="instructions">
+    <strong>📋 Mahjong Game Rules:</strong>
+    <ul>
+      <li><strong>Exactly 4 players</strong> must participate in each game</li>
+      <li><strong>Enter scores</strong> for players who won or lost points (can be positive or negative)</li>
+      <li><strong>Enter 0</strong> for players who played but scored nothing</li>
+      <li><strong>Leave blank</strong> for players who didn't play</li>
+      <li><strong>Sum must equal 0:</strong> Total of all scores must be exactly zero</li>
+    </ul>
+  </div>
+
+  <div class="error-message" id="errorMessage"></div>
+
+  <div class="player-section">
+    <h3>Player Scores</h3>
+    <div id="playerInputs"></div>
+  </div>
+
+  <div class="validation-feedback">
+    <div class="feedback-item">
+      <span class="feedback-label">Players:</span>
+      <span class="feedback-value" id="playerCount">0/4</span>
+    </div>
+    <div class="feedback-item">
+      <span class="feedback-label">Score Sum:</span>
+      <span class="feedback-value" id="scoreSum">0</span>
+    </div>
+  </div>
+
+  <div class="button-row">
+    <button class="btn-cancel" onclick="closeWindow()">Cancel</button>
+    <button class="btn-submit" id="submitBtn" onclick="submitScores()">
+      <span id="submitText">Submit Game</span>
+    </button>
+  </div>
+
+  <div class="success-state" id="successState">
+    <div class="success-icon">✅</div>
+    <div class="success-message">Game Added Successfully!</div>
+    <div class="success-submessage">The game has been recorded. Closing...</div>
+  </div>
+
+  <script>
+    // Get list of players from Apps Script
+    let allPlayers = [];
+    let scores = {};
+
+    async function initializePage() {
+      try {
+        const data = await callAppsScript('getGameData');
+        allPlayers = data.players || [];
+        createPlayerInputs();
+        updateValidationFeedback();
+      } catch (error) {
+        showError('Failed to load players: ' + error.message);
+      }
+    }
+
+    function createPlayerInputs() {
+      const container = document.getElementById('playerInputs');
+      container.innerHTML = allPlayers.map((player, index) => `
+        <div class="player-input">
+          <input 
+            type="text" 
+            value="${player}" 
+            disabled 
+            style="background: var(--bg-secondary); cursor: not-allowed;"
+          />
+          <input 
+            type="number" 
+            id="player_${index}" 
+            placeholder="0" 
+            data-player="${player}"
+            onchange="updateScores()"
+            onkeyup="updateValidationFeedback()"
+          />
+        </div>
+      `).join('');
+    }
+
+    function updateScores() {
+      scores = {};
+      allPlayers.forEach((player, index) => {
+        const input = document.getElementById(`player_${index}`);
+        const value = input.value.trim();
+        if (value !== '') {
+          scores[player] = parseFloat(value);
+          input.classList.remove('error-field');
+        }
+      });
+      updateValidationFeedback();
+    }
+
+    function updateValidationFeedback() {
+      const filledCount = Object.keys(scores).length;
+      const sum = Object.values(scores).reduce((a, b) => a + (Number(b) || 0), 0);
+
+      // Update display
+      const playerCountEl = document.getElementById('playerCount');
+      const scoreSumEl = document.getElementById('scoreSum');
+
+      playerCountEl.textContent = `${filledCount}/4`;
+      playerCountEl.className = `feedback-value ${filledCount === 4 ? 'valid' : 'invalid'}`;
+
+      scoreSumEl.textContent = `${sum > 0 ? '+' : ''}${sum.toFixed(1)}`;
+      scoreSumEl.className = `feedback-value ${Math.abs(sum) < 0.001 ? 'valid' : 'invalid'}`;
+
+      // Update button state
+      const isValid = filledCount === 4 && Math.abs(sum) < 0.001;
+      document.getElementById('submitBtn').disabled = !isValid;
+    }
+
+    function showError(message) {
+      const errorEl = document.getElementById('errorMessage');
+      errorEl.textContent = message;
+      errorEl.classList.add('show');
+
+      // Highlight filled fields
+      allPlayers.forEach((player, index) => {
+        const input = document.getElementById(`player_${index}`);
+        if (scores[player] !== undefined) {
+          input.classList.add('error-field');
+        }
+      });
+    }
+
+    function clearError() {
+      const errorEl = document.getElementById('errorMessage');
+      errorEl.classList.remove('show');
+      allPlayers.forEach((player, index) => {
+        const input = document.getElementById(`player_${index}`);
+        input.classList.remove('error-field');
+      });
+    }
+
+    async function submitScores() {
+      clearError();
+      updateScores();
+
+      // Validate
+      const filledCount = Object.keys(scores).length;
+      if (filledCount !== 4) {
+        const msg = filledCount < 4
+          ? `Not enough players (${filledCount}/4). Mahjong requires exactly 4 players.`
+          : `Too many players (${filledCount}). Mahjong requires exactly 4 players.`;
+        showError(msg);
+        return;
+      }
+
+      const sum = Object.values(scores).reduce((a, b) => a + (Number(b) || 0), 0);
+      if (Math.abs(sum) > 0.001) {
+        showError(`Scores must sum to 0 (currently: ${sum.toFixed(1)})`);
+        return;
+      }
+
+      // Disable submit button and show loading
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+      document.getElementById('submitText').innerHTML = '<span class="spinner"></span>Submitting...';
+
+      try {
+        await callAppsScript('submitGame', scores);
+        
+        // Show success state
+        document.querySelector('.player-section').style.display = 'none';
+        document.querySelector('.validation-feedback').style.display = 'none';
+        document.querySelector('.button-row').style.display = 'none';
+        document.getElementById('successState').classList.add('show');
+
+        // Close window after 2 seconds
+        setTimeout(() => {
+          closeWindow();
+        }, 2000);
+      } catch (error) {
+        showError('Error submitting game: ' + error.message);
+        btn.disabled = false;
+        document.getElementById('submitText').textContent = 'Submit Game';
+      }
+    }
+
+    function closeWindow() {
+      if (typeof google !== 'undefined' && google.script) {
+        google.script.host.close();
+      } else {
+        window.close();
+      }
+    }
+
+    function callAppsScript(functionName, ...args) {
+      return new Promise((resolve, reject) => {
+        try {
+          if (typeof google === 'undefined' || !google.script) {
+            reject(new Error('Google Apps Script environment not available'));
+            return;
+          }
+          
+          const runner = google.script.run
+            .withSuccessHandler(result => resolve(result))
+            .withFailureHandler(error => reject(new Error(error.message || 'Unknown error')));
+          
+          runner[functionName](...args);
+        } catch (error) {
+          reject(error);
+        }
+      });
+    }
+
+    // Initialize page
+    initializePage();
+  </script>
+</body>
+</html>

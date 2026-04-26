@@ -1,0 +1,1237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🀄 Mahjong Club - Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <style>
+    /* ============================================================
+       MAHJONG UI - SHARED CSS (Embedded)
+       ============================================================ */
+    :root {
+      --primary: #667eea;
+      --primary-dark: #5568d3;
+      --secondary: #764ba2;
+      --accent-success: #48bb78;
+      --accent-error: #f56565;
+      --accent-warning: #ed8936;
+      --accent-info: #4299e1;
+      
+      --text-primary: #1a202c;
+      --text-secondary: #4a5568;
+      --text-muted: #718096;
+      --text-light: #a0aec0;
+      
+      --bg-primary: #ffffff;
+      --bg-secondary: #f7fafc;
+      --bg-tertiary: #edf2f7;
+      
+      --border-color: #e2e8f0;
+      --border-dark: #cbd5e0;
+      
+      --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+      --shadow-lg: 0 8px 20px rgba(0, 0, 0, 0.15);
+      
+      --radius-sm: 4px;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      
+      --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    body.dark-mode {
+      --text-primary: #f7fafc;
+      --text-secondary: #e2e8f0;
+      --text-muted: #cbd5e0;
+      --text-light: #a0aec0;
+      
+      --bg-primary: #1a202c;
+      --bg-secondary: #2d3748;
+      --bg-tertiary: #4a5568;
+      
+      --border-color: #4a5568;
+      --border-dark: #2d3748;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      font-size: 16px;
+      line-height: 1.5;
+      color: var(--text-primary);
+      background: var(--bg-secondary);
+      transition: background 0.3s, color 0.3s;
+    }
+
+    h1, h2, h3, h4, h5, h6 {
+      font-weight: 700;
+      line-height: 1.2;
+      margin-bottom: 0.5em;
+    }
+
+    h1 { font-size: 28px; }
+    h2 { font-size: 24px; }
+    h3 { font-size: 20px; }
+    h4 { font-size: 18px; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      border: none;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: var(--transition);
+      text-decoration: none;
+      user-select: none;
+      white-space: nowrap;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: var(--primary-dark);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .btn-secondary {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      border: 1px solid var(--border-color);
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background: var(--border-color);
+    }
+
+    .card {
+      background: var(--bg-primary);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      box-shadow: var(--shadow-md);
+      transition: var(--transition);
+    }
+
+    .card:hover {
+      box-shadow: var(--shadow-lg);
+      transform: translateY(-2px);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .card-header h2 {
+      flex: 1;
+      margin: 0;
+    }
+
+    .card-icon {
+      font-size: 24px;
+      flex-shrink: 0;
+    }
+
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    .table thead {
+      background: var(--bg-secondary);
+    }
+
+    .table th {
+      padding: 12px;
+      text-align: left;
+      font-weight: 700;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.5px;
+      border-bottom: 2px solid var(--border-color);
+      user-select: none;
+      cursor: pointer;
+    }
+
+    .table th:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .table th.sort-asc::after {
+      content: " ↑";
+      color: var(--primary);
+    }
+
+    .table th.sort-desc::after {
+      content: " ↓";
+      color: var(--primary);
+    }
+
+    .table td {
+      padding: 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .table tbody tr:nth-child(even) {
+      background: var(--bg-secondary);
+    }
+
+    .table tbody tr:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      border-radius: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+    }
+
+    .badge-messiah {
+      background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+      color: #1a202c;
+    }
+
+    .badge-master {
+      background: linear-gradient(135deg, #c0c0c0 0%, #e8e8e8 100%);
+      color: #1a202c;
+    }
+
+    .badge-magician {
+      background: linear-gradient(135deg, #cd7f32 0%, #deb887 100%);
+      color: white;
+    }
+
+    .badge-monk, .badge-minion, .badge-mongrel, .badge-moron {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    .stat-card {
+      background: var(--bg-primary);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      box-shadow: var(--shadow-md);
+      text-align: center;
+      transition: var(--transition);
+    }
+
+    .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 4px;
+    }
+
+    .stat-label {
+      font-size: 13px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .alert {
+      padding: 12px 16px;
+      border-radius: var(--radius-md);
+      margin-bottom: 16px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .alert-success {
+      background: #f0fdf4;
+      border: 1px solid #86efac;
+      color: #166534;
+    }
+
+    .alert-error {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #991b1b;
+    }
+
+    .alert-icon {
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .alert-message {
+      flex: 1;
+      font-size: 14px;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 3px solid rgba(102, 126, 234, 0.2);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .text-success { color: var(--accent-success); }
+    .text-error { color: var(--accent-error); }
+    .text-muted { color: var(--text-muted); }
+  </style>
+
+  <style>
+    /* ============================================================
+       INDEX.HTML - SPECIFIC STYLES
+       ============================================================ */
+
+    body {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+    }
+
+    .header {
+      background: rgba(255, 255, 255, 0.98);
+      padding: 24px 32px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      border-bottom: 3px solid #667eea;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header-left {
+      flex: 1;
+    }
+
+    .header-right {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      color: #1a202c;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .header .subtitle {
+      font-size: 14px;
+      color: #718096;
+      font-weight: 400;
+    }
+
+    .theme-toggle {
+      background: none;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      padding: 8px;
+      border-radius: 8px;
+      transition: var(--transition);
+    }
+
+    .theme-toggle:hover {
+      background: var(--bg-secondary);
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 24px auto;
+      padding: 0 24px;
+    }
+
+    .hero-section {
+      background: rgba(255, 255, 255, 0.98);
+      border-radius: var(--radius-lg);
+      padding: 32px;
+      box-shadow: var(--shadow-md);
+      margin-bottom: 24px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 32px;
+      align-items: center;
+    }
+
+    .hero-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 16px;
+      flex: 1;
+    }
+
+    .hero-stat {
+      text-align: center;
+    }
+
+    .hero-stat-value {
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 4px;
+    }
+
+    .hero-stat-label {
+      font-size: 13px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .hero-actions .btn {
+      min-width: 160px;
+    }
+
+    .section-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-icon {
+      font-size: 24px;
+    }
+
+    .leaderboard-section {
+      background: rgba(255, 255, 255, 0.98);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      box-shadow: var(--shadow-md);
+      margin-bottom: 24px;
+    }
+
+    .leaderboard-controls {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .search-box {
+      flex: 1;
+      min-width: 200px;
+      position: relative;
+    }
+
+    .search-box input {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 14px;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      background: var(--bg-secondary);
+    }
+
+    .search-box input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .page-select {
+      padding: 10px 12px;
+      font-size: 14px;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      background: var(--bg-primary);
+      cursor: pointer;
+    }
+
+    .table-wrapper {
+      overflow-x: auto;
+    }
+
+    .pagination {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border-color);
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .pagination-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .pagination-buttons .btn {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .charts-section {
+      background: rgba(255, 255, 255, 0.98);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      box-shadow: var(--shadow-md);
+    }
+
+    .chart-card {
+      margin-bottom: 32px;
+    }
+
+    .chart-card:last-child {
+      margin-bottom: 0;
+    }
+
+    .chart-container {
+      position: relative;
+      height: 400px;
+      margin-top: 16px;
+    }
+
+    .loading-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 300px;
+      gap: 12px;
+      color: var(--text-muted);
+    }
+
+    .loading-spinner-large {
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(102, 126, 234, 0.2);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @media (max-width: 1024px) {
+      .hero-section {
+        grid-template-columns: 1fr;
+      }
+
+      .leaderboard-controls {
+        flex-direction: column;
+      }
+
+      .search-box {
+        min-width: 100%;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .header {
+        flex-direction: column;
+        gap: 12px;
+        text-align: center;
+      }
+
+      .header-right {
+        justify-content: center;
+      }
+
+      .header h1 {
+        font-size: 24px;
+      }
+
+      .container {
+        padding: 0 12px;
+      }
+
+      .hero-section {
+        padding: 16px;
+      }
+
+      .hero-stats {
+        grid-template-columns: repeat(2, 1fr);
+        Gap: 12px;
+      }
+
+      .hero-actions .btn {
+        flex: 1;
+        min-width: unset;
+      }
+
+      .table {
+        font-size: 12px;
+      }
+
+      .table th,
+      .table td {
+        padding: 8px;
+      }
+
+      .chart-container {
+        height: 300px;
+      }
+
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .header h1 {
+        font-size: 20px;
+      }
+
+      .leaderboard-controls {
+        flex-direction: column;
+      }
+
+      .page-select {
+        width: 100%;
+      }
+
+      .table {
+        font-size: 11px;
+      }
+
+      .table th,
+      .table td {
+        padding: 6px;
+      }
+
+      .chart-container {
+        height: 250px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-left">
+      <h1>🀄 Mahjong Club Dashboard</h1>
+      <p class="subtitle">Track player performance and rankings</p>
+    </div>
+    <div class="header-right">
+      <button class="theme-toggle" title="Toggle dark mode" onclick="toggleDarkMode(); location.reload()">
+        <span id="theme-icon">🌙</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- HERO SECTION -->
+    <div class="hero-section" id="heroSection">
+      <div class="hero-stats">
+        <div class="hero-stat">
+          <div class="hero-stat-value" id="totalPlayers">-</div>
+          <div class="hero-stat-label">Total Players</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-value" id="totalGames">-</div>
+          <div class="hero-stat-label">Total Games</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-value" id="currentLeader">-</div>
+          <div class="hero-stat-label">Current Leader</div>
+        </div>
+      </div>
+      <div class="hero-actions">
+        <button class="btn btn-primary" onclick="openAddGameModal()">➕ Add Game</button>
+        <button class="btn btn-secondary" onclick="openAddPlayerModal()">👤 Add Player</button>
+      </div>
+    </div>
+
+    <!-- LEADERBOARD SECTION -->
+    <h2 class="section-title"><span class="section-icon">🏆</span>Leaderboard</h2>
+    <div class="leaderboard-section" id="leaderboardSection">
+      <div class="leaderboard-controls">
+        <input type="text" class="search-box" id="searchBox" placeholder="Search player name..." onkeyup="filterTable()">
+        <select class="page-select" id="pageSize" onchange="updateLeaderboard()">
+          <option value="10">10 per page</option>
+          <option value="25" selected>25 per page</option>
+          <option value="50">50 per page</option>
+          <option value="100">100 per page</option>
+        </select>
+        <button class="btn btn-secondary" onclick="reloadData()">
+          <span id="reloadIcon">↻</span> Refresh
+        </button>
+      </div>
+
+      <div class="table-wrapper">
+        <table class="table" id="leaderboardTable">
+          <thead>
+            <tr>
+              <th onclick="sortTable(0)">Rank</th>
+              <th onclick="sortTable(1)">Title</th>
+              <th onclick="sortTable(2)">Player Name</th>
+              <th onclick="sortTable(3)">Score</th>
+              <th onclick="sortTable(4)">Games</th>
+              <th onclick="sortTable(5)">Wins</th>
+              <th onclick="sortTable(6)">Losses</th>
+              <th onclick="sortTable(7)">W/L Ratio</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboardBody">
+            <tr><td colspan="8" style="text-align: center; padding: 24px;">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pagination" id="paginationInfo">
+        <div id="pageInfo">Showing 0-0 of 0</div>
+        <div class="pagination-buttons">
+          <button class="btn btn-secondary" onclick="previousPage()">← Previous</button>
+          <button class="btn btn-secondary" onclick="nextPage()">Next →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STATISTICS SECTION -->
+    <h2 class="section-title"><span class="section-icon">📊</span>Statistics</h2>
+    <div class="stats-grid" id="statsGrid">
+      <div class="stat-card">
+        <div class="stat-value" id="statAvgScore">-</div>
+        <div class="stat-label">Avg Score per Game</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="statMostImproved">-</div>
+        <div class="stat-label">Most Improved</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="statHighestWin">-</div>
+        <div class="stat-label">Highest Single Win</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="statLowestLoss">-</div>
+        <div class="stat-label">Biggest Loss</div>
+      </div>
+    </div>
+
+    <!-- CHARTS SECTION -->
+    <h2 class="section-title"><span class="section-icon">📈</span>Charts</h2>
+    <div class="charts-section" id="chartsSection">
+      <div class="chart-card">
+        <div class="card-header">
+          <span class="card-icon">📈</span>
+          <h2>Cumulative Scores Over Time</h2>
+        </div>
+        <div class="chart-container">
+          <canvas id="scoresChart"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="card-header">
+          <span class="card-icon">🏆</span>
+          <h2>Rank Progression</h2>
+        </div>
+        <div class="chart-container">
+          <canvas id="rankChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODALS -->
+  <div id="addGameModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: white; border-radius: 12px; padding: 24px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto;">
+      <h2 style="margin-bottom: 16px;">Add New Game</h2>
+      <div id="gameModalContent"></div>
+    </div>
+  </div>
+
+  <div id="addPlayerModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: white; border-radius: 12px; padding: 24px; max-width: 400px; width: 90%; overflow-y: auto;">
+      <h2 style="margin-bottom: 16px;">Add New Player</h2>
+      <div id="playerModalContent"></div>
+    </div>
+  </div>
+
+  <script>
+    /* ============================================================
+       SHARED JAVASCRIPT (Embedded from app.js)
+       ============================================================ */
+    
+    // [All shared JavaScript utilities would be embedded here from app.js]
+    // For this demo, we include the essential functions:
+
+    function formatScore(score) {
+      const num = Number(score) || 0;
+      if (num > 0) return `+${num}`;
+      return String(num);
+    }
+
+    function getScoreColorClass(score) {
+      const num = Number(score) || 0;
+      if (num > 0) return 'text-success';
+      if (num < 0) return 'text-error';
+      return 'text-muted';
+    }
+
+    function rankToTitle(rank, totalPlayers) {
+      rank = Number(rank) || 0;
+      totalPlayers = Number(totalPlayers) || 1;
+      
+      if (rank === 1) return 'Messiah';
+      if (rank === 2 || rank === 3) return 'Master';
+      if (rank >= 4 && rank <= 6) return 'Magician';
+      if (rank === totalPlayers) return 'Moron';
+      if (rank === totalPlayers - 1 || rank === totalPlayers - 2) return 'Mongrel';
+      if (rank >= totalPlayers - 5 && rank <= totalPlayers - 3) return 'Minion';
+      return 'Monk';
+    }
+
+    function getTitleBadgeClass(title) {
+      const map = {
+        'Messiah': 'badge-messiah',
+        'Master': 'badge-master',
+        'Magician': 'badge-magician',
+        'Monk': 'badge-monk',
+        'Minion': 'badge-minion',
+        'Mongrel': 'badge-mongrel',
+        'Moron': 'badge-moron'
+      };
+      return map[title] || '';
+    }
+
+    function formatRatio(ratio) {
+      const num = Number(ratio) || 0;
+      return num.toFixed(2);
+    }
+
+    function showNotification(message, type = 'info', duration = 3000) {
+      const container = document.getElementById('notification-container') || createNotificationContainer();
+      const alert = document.createElement('div');
+      alert.className = `alert alert-${type}`;
+      
+      const icons = {
+        success: '✓',
+        error: '✕',
+        warning: '!',
+        info: 'ℹ'
+      };
+      
+      alert.innerHTML = `
+        <span class="alert-icon">${icons[type] || icons.info}</span>
+        <span class="alert-message">${message}</span>
+      `;
+      
+      container.appendChild(alert);
+      
+      if (duration > 0) {
+        setTimeout(() => {
+          if (alert.parentElement) alert.remove();
+        }, duration);
+      }
+    }
+
+    function createNotificationContainer() {
+      const container = document.createElement('div');
+      container.id = 'notification-container';
+      container.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 10000;
+        max-width: 400px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      `;
+      document.body.appendChild(container);
+      return container;
+    }
+
+    function initializeDarkMode() {
+      const isDark = localStorage.getItem('mahjong-dark-mode') === 'true';
+      if (isDark) {
+        document.body.classList.add('dark-mode');
+      }
+      updateThemeIcon();
+    }
+
+    function updateThemeIcon() {
+      const isDark = document.body.classList.contains('dark-mode');
+      document.getElementById('theme-icon').textContent = isDark ? '☀️' : '🌙';
+    }
+
+    function toggleDarkMode() {
+      const isDark = document.body.classList.toggle('dark-mode');
+      localStorage.setItem('mahjong-dark-mode', isDark);
+      updateThemeIcon();
+    }
+
+    function generatePlayerColor(index, total) {
+      const goldenRatio = 0.618033988749895;
+      const hue = (index * goldenRatio * 360) % 360;
+      const saturation = 65 + (index % 3) * 10;
+      const lightness = 45 + (index % 4) * 5;
+      return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+    }
+
+    function callAppsScript(functionName, ...args) {
+      return new Promise((resolve, reject) => {
+        try {
+          if (typeof google === 'undefined' || !google.script) {
+            reject(new Error('Google Apps Script environment not available'));
+            return;
+          }
+          
+          const runner = google.script.run
+            .withSuccessHandler(result => resolve(result))
+            .withFailureHandler(error => reject(new Error(error.message || 'Unknown error')));
+          
+          runner[functionName](...args);
+        } catch (error) {
+          reject(error);
+        }
+      });
+    }
+
+    // ============================================================
+    //  INDEX.HTML - SPECIFIC JAVASCRIPT
+    // ============================================================
+
+    let allData = {};
+    let displayedData = [];
+    let currentPage = 1;
+    let sortColumn = 3; // Score by default
+    let sortDirection = 'desc';
+    let chartsInitialized = false;
+    let scoreChart = null;
+    let rankChart = null;
+
+    async function loadData() {
+      try {
+        document.getElementById('reloadIcon').style.animation = 'spin 1s linear infinite';
+        const result = await callAppsScript('getAllGameData');
+        
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to load data');
+        }
+
+        allData = result;
+        updateHeroStats();
+        updateLeaderboard();
+        updateStatistics();
+        initializeCharts();
+        
+        showNotification('Data loaded successfully!', 'success', 2000);
+      } catch (error) {
+        showNotification(`Error: ${error.message}`, 'error');
+        console.error(error);
+      } finally {
+        document.getElementById('reloadIcon').style.animation = '';
+      }
+    }
+
+    function updateHeroStats() {
+      if (!allData.leaderboard || allData.leaderboard.length === 0) {
+        document.getElementById('totalPlayers').textContent = '0';
+        document.getElementById('totalGames').textContent = '0';
+        document.getElementById('currentLeader').textContent = '-';
+        return;
+      }
+
+      document.getElementById('totalPlayers').textContent = allData.totalPlayers || 0;
+      document.getElementById('totalGames').textContent = allData.totalGames || 0;
+      
+      const leader = allData.leaderboard[0];
+      document.getElementById('currentLeader').textContent = leader ? leader.player : '-';
+    }
+
+    function updateLeaderboard() {
+      if (!allData.leaderboard) {
+        document.getElementById('leaderboardBody').innerHTML = '<tr><td colspan="8" style="text-align: center;">No data</td></tr>';
+        return;
+      }
+
+      const pageSize = parseInt(document.getElementById('pageSize').value) || 25;
+      const searchTerm = document.getElementById('searchBox').value.toLowerCase();
+      
+      // Filter by search
+      let filteredData = allData.leaderboard.filter(p => 
+        p.player.toLowerCase().includes(searchTerm)
+      );
+
+      // Sort
+      filteredData.sort((a, b) => {
+        let aVal, bVal;
+        switch(sortColumn) {
+          case 0: aVal = a.rank; bVal = b.rank; break;
+          case 1: aVal = a.title; bVal = b.title; break;
+          case 2: aVal = a.player; bVal = b.player; break;
+          case 3: aVal = a.totalScore; bVal = b.totalScore; break;
+          case 4: aVal = a.gamesPlayed; bVal = b.gamesPlayed; break;
+          case 5: aVal = a.wins; bVal = b.wins; break;
+          case 6: aVal = a.losses; bVal = b.losses; break;
+          case 7: aVal = a.winLossRatio; bVal = b.winLossRatio; break;
+          default: aVal = a.rank; bVal = b.rank;
+        }
+
+        if (typeof aVal === 'string') {
+          return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+        }
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      });
+
+      displayedData = filteredData;
+
+      // Paginate
+      const start = (currentPage - 1) * pageSize;
+      const end = start + pageSize;
+      const pageData = filteredData.slice(start, end);
+
+      // Render
+      const tbody = document.getElementById('leaderboardBody');
+      tbody.innerHTML = pageData.map((player, idx) => `
+        <tr>
+          <td>${player.rank}</td>
+          <td><span class="badge badge-${player.title.toLowerCase()}">${player.title}</span></td>
+          <td>${player.player}</td>
+          <td class="${getScoreColorClass(player.totalScore)}">${formatScore(player.totalScore)}</td>
+          <td>${player.gamesPlayed}</td>
+          <td class="text-success">${player.wins}</td>
+          <td class="text-error">${player.losses}</td>
+          <td>${formatRatio(player.winLossRatio)}</td>
+        </tr>
+      `).join('');
+
+      // Update pagination
+      const totalPages = Math.ceil(filteredData.length / pageSize);
+      document.getElementById('pageInfo').textContent = `Showing ${start + 1}-${Math.min(end, filteredData.length)} of ${filteredData.length}`;
+
+      updatePaginationButtons(currentPage, totalPages);
+    }
+
+    function updatePaginationButtons(current, total) {
+      // Buttons are updated in nextPage/previousPage functions
+    }
+
+    function nextPage() {
+      const pageSize = parseInt(document.getElementById('pageSize').value) || 25;
+      const maxPage = Math.ceil(displayedData.length / pageSize);
+      if (currentPage < maxPage) {
+        currentPage++;
+        updateLeaderboard();
+      }
+    }
+
+    function previousPage() {
+      if (currentPage > 1) {
+        currentPage--;
+        updateLeaderboard();
+      }
+    }
+
+    function sortTable(column) {
+      if (sortColumn === column) {
+        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+      } else {
+        sortColumn = column;
+        sortDirection = 'desc';
+      }
+
+      // Update visual indicator
+      const headers = document.querySelectorAll('.table th');
+      headers.forEach(h => h.classList.remove('sort-asc', 'sort-desc'));
+      headers[column].classList.add(sortDirection === 'asc' ? 'sort-asc' : 'sort-desc');
+
+      currentPage = 1;
+      updateLeaderboard();
+    }
+
+    function filterTable() {
+      currentPage = 1;
+      updateLeaderboard();
+    }
+
+    function updateStatistics() {
+      if (!allData.leaderboard || !allData.gameData) return;
+
+      const lb = allData.leaderboard;
+      let totalScore = 0;
+      lb.forEach(p => totalScore += p.totalScore);
+      const avgScore = allData.totalGames > 0 ? (totalScore / allData.totalGames).toFixed(1) : 0;
+
+      let maxImproved = null, maxImprovement = 0;
+      if (allData.gameData.length > 1) {
+        const firstRanks = allData.gameData[0].ranks;
+        const lastRanks = allData.gameData[allData.gameData.length - 1].ranks;
+        lastRanks.forEach((rank, idx) => {
+          const improvement = firstRanks[idx] - rank;
+          if (improvement > maxImprovement) {
+            maxImprovement = improvement;
+            maxImproved = allData.players[idx];
+          }
+        });
+      }
+
+      let maxWin = -Infinity, maxLoss = Infinity;
+      lb.forEach(p => {
+        if (p.highestGame > maxWin) maxWin = p.highestGame;
+        if (p.lowestGame < maxLoss) maxLoss = p.lowestGame;
+      });
+
+      document.getElementById('statAvgScore').textContent = `${avgScore > 0 ? '+' : ''}${avgScore}`;
+      document.getElementById('statMostImproved').textContent = maxImproved || '-';
+      document.getElementById('statHighestWin').textContent = maxWin !== -Infinity ? `+${maxWin}` : '-';
+      document.getElementById('statLowestLoss').textContent = maxLoss !== Infinity ? `${maxLoss}` : '-';
+    }
+
+    function initializeCharts() {
+      if (!allData.gameData || allData.gameData.length === 0) return;
+
+      const labels = allData.gameData.map((d, i) => d.time || `Game ${i + 1}`);
+      
+      // Limit labels for readability
+      let displayLabels = labels;
+      if (labels.length > 20) {
+        displayLabels = labels.map((l, i) => i % Math.ceil(labels.length / 10) === 0 ? l : '');
+      }
+
+      // ===== SCORES CHART =====
+      const scoresDatasets = allData.players.map((player, idx) => ({
+        label: player,
+        data: allData.gameData.map(d => d.cumulative[idx]),
+        borderColor: generatePlayerColor(idx, allData.players.length),
+        backgroundColor: generatePlayerColor(idx, allData.players.length),
+        fill: false,
+        tension: 0.3,
+        borderWidth: 2,
+        pointRadius: 0,
+        pointHoverRadius: 6
+      }));
+
+      const scoresCtx = document.getElementById('scoresChart').getContext('2d');
+      if (scoreChart) scoreChart.destroy();
+      scoreChart = new Chart(scoresCtx, {
+        type: 'line',
+        data: { labels: displayLabels, datasets: scoresDatasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: true, position: 'bottom' }
+          },
+          scales: {
+            x: { grid: { display: true, color: 'rgba(0,0,0,0.05)' } },
+            y: { grid: { color: 'rgba(0,0,0,0.05)' } }
+          }
+        }
+      });
+
+      // ===== RANK CHART =====
+      const ranksDatasets = allData.players.map((player, idx) => ({
+        label: player,
+        data: allData.gameData.map(d => d.ranks[idx]),
+        borderColor: generatePlayerColor(idx, allData.players.length),
+        fill: false,
+        tension: 0.3,
+        borderWidth: 2,
+        pointRadius: 0,
+        pointHoverRadius: 6
+      }));
+
+      const rankCtx = document.getElementById('rankChart').getContext('2d');
+      if (rankChart) rankChart.destroy();
+      rankChart = new Chart(rankCtx, {
+        type: 'line',
+        data: { labels: displayLabels, datasets: ranksDatasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: true, position: 'bottom' }
+          },
+          scales: {
+            x: { grid: { display: true, color: 'rgba(0,0,0,0.05)' } },
+            y: { 
+              reverse: true,
+              ticks: { stepSize: 1 },
+              grid: { color: 'rgba(0,0,0,0.05)' }
+            }
+          }
+        }
+      });
+
+      chartsInitialized = true;
+    }
+
+    function reloadData() {
+      currentPage = 1;
+      loadData();
+    }
+
+    function openAddGameModal() {
+      // This would typically open an iframe or new window to add-game.html
+      showNotification('Add Game feature coming soon', 'info');
+    }
+
+    function openAddPlayerModal() {
+      // This would typically open an iframe or new window to add-player.html
+      showNotification('Add Player feature coming soon', 'info');
+    }
+
+    // Initialize on load
+    initializeDarkMode();
+    loadData();
+  </script>
+</body>
+</html>
