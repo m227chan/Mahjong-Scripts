@@ -35,16 +35,36 @@ Players earn titles based on leaderboard rank:
 
 ### 📉 Interactive Dashboard
 A real-time visualization showing:
-- Game history with timestamps
-- Cumulative score trends
-- Player rankings throughout the season
-- Historical performance data
+
+#### Cumulative Scores Chart
+- Line graph tracking each player's total score progression across all games
+- Shows score trends over time for performance analysis
+- Color-coded lines for easy player identification
+
+#### Rank Over Time Chart (Bump Chart)
+- Visualizes how player rankings change throughout the season
+- Displays rank (1 = best) on the Y-axis and games on the X-axis
+- Helps identify momentum shifts and competitive dynamics
+- Reverse-scaled Y-axis for intuitive rank visualization (top = rank 1)
+
+#### Interactive Features
+- **Click Legend to Toggle Players**: Click any player name in the chart legend to show/hide their data
+- **Multi-select Filtering**: Toggle multiple players on or off to compare specific competitors
+- **Responsive Design**: Charts automatically adapt to different screen sizes
+- **Smooth Animations**: Tension-based curves for smooth line transitions between data points
+
+#### Data Display
+- Game timestamps displayed on X-axis (auto-formatted, max 10 ticks for readability)
+- Dynamic scaling based on number of games played
+- Automatic fallback labels ("Game 1", "Game 2", etc.) if timestamps unavailable
+- Point markers at each game for precise value reading
 
 ## Technical Stack
 
 - **JavaScript (Google Apps Script)** - Core scripting logic
 - **Google Sheets API** - Data storage and manipulation
 - **HTML/CSS** - Interactive dialogs and dashboard UI
+- **Chart.js** - Dashboard visualization library
 - **Python** - Supporting utilities
 
 ## How to Use
@@ -69,7 +89,9 @@ A real-time visualization showing:
 
 ### Viewing Dashboard
 1. Click **🀄 Mahjong Club Menu** → **📊 View Dashboard**
-2. Explore game history and player statistics
+2. Explore cumulative scores and ranking trends
+3. Click legend entries to focus on specific players
+4. Analyze performance patterns across the season
 
 ## File Structure
 
@@ -80,7 +102,11 @@ A real-time visualization showing:
   - Dialog UI generation (`buildGameDialog()`)
   - Dashboard data retrieval (`getGameData()`)
   - Helper utilities (`columnToLetter()`)
-- `dashboard.html` - Interactive dashboard visualization
+- `dashboard.html` - Interactive dashboard visualization with Chart.js integration:
+  - Cumulative score tracking
+  - Bump chart for ranking analysis
+  - Legend-based filtering
+  - Responsive chart containers
 
 ## Validation Rules
 
@@ -108,6 +134,8 @@ Auto-generated rankings with dynamic formulas tracking player performance.
 - [ ] Player statistics analysis
 - [ ] Monthly/seasonal awards
 - [ ] Photo upload for players
+- [ ] Advanced filtering by date range on dashboard
+- [ ] Statistical comparison tools
 
 ## License
 
