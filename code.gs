@@ -124,197 +124,250 @@ function addNewGame() {
 }
 
 function buildGameDialog(players) {
-  const fields = players.map(player => `
-    <div class="field">
-      <label>${player}</label>
-      <input type="number" id="${player}" placeholder="leave blank if didn't play" />
-    </div>
-  `).join("");
-
   return `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <style>
-          * { box-sizing: border-box; font-family: Arial, sans-serif; }
-          body { padding: 16px; margin: 0; background: #fff; }
-          h3 { margin: 0 0 8px; font-size: 15px; color: #1a1a1a; }
-          .instructions {
-            background: #e8f0fe;
-            border-left: 4px solid #1a73e8;
-            padding: 10px 12px;
-            margin-bottom: 16px;
-            font-size: 12px;
-            color: #333;
-            line-height: 1.5;
-          }
-          .instructions strong {
-            display: block;
-            margin-bottom: 4px;
-            color: #1a73e8;
-          }
-          .instructions ul {
-            margin: 4px 0 0 0;
-            padding-left: 20px;
-          }
-          .instructions li {
-            margin-bottom: 3px;
-          }
-          .field {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 8px;
-          }
-          label {
-            font-size: 13px;
-            color: #333;
-            width: 50%;
-          }
-          input {
-            width: 45%;
-            padding: 6px 8px;
-            font-size: 13px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-          }
-          input.error-field {
-            border-color: #d93025;
-            background-color: #fce8e6;
-          }
-          .btn-row {
-            display: flex;
-            justify-content: flex-end;
-            gap: 8px;
-            margin-top: 14px;
-          }
-          button {
-            padding: 7px 18px;
-            font-size: 13px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-          }
-          .cancel { background: #eee; color: #333; }
-          .submit { background: #1a73e8; color: white; }
-          .submit:hover { background: #1558b0; }
-          .submit:disabled { background: #aaa; cursor: not-allowed; }
-          .error {
-            color: #d93025;
-            font-size: 12px;
-            margin-top: 8px;
-            padding: 8px 12px;
-            background: #fce8e6;
-            border-radius: 4px;
-            display: none;
-            font-weight: 500;
-          }
-        </style>
-      </head>
-      <body>
-        <h3>Enter Game Scores</h3>
-        <div class="instructions">
-          <strong>📋 Instructions (exactly 4 players per game):</strong>
-          <ul>
-            <li><strong>Enter score</strong> for players who won or lost points</li>
-            <li><strong>Enter 0</strong> for players who played but scored nothing</li>
-            <li><strong>Leave blank</strong> for players who didn't play</li>
-          </ul>
-        </div>
-        ${fields}
-        <div class="error" id="error-msg"></div>
-        <div class="btn-row">
-          <button class="cancel" onclick="google.script.host.close()">Cancel</button>
-          <button class="submit" onclick="submitScores()">Add Game</button>
-        </div>
-        <script>
-          function submitScores() {
-            const players = ${JSON.stringify(players)};
-            const scores = {};
-            let filledCount = 0;
-            
-            // Clear any previous error styling
-            players.forEach(p => {
-              document.getElementById(p).classList.remove('error-field');
-            });
-            
-            players.forEach(p => {
-              const input = document.getElementById(p);
-              const val = input.value.trim();
-              if (val !== "") {
-                scores[p] = parseFloat(val);
-                filledCount++;
-              }
-            });
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    * { box-sizing: border-box; font-family: Arial; }
+    body { padding: 16px; margin: 0; }
 
-            const errorMsg = document.getElementById('error-msg');
-            
-            // Hide previous messages
-            errorMsg.style.display = 'none';
-            
-            // VALIDATION 1: Check player count - MUST BE EXACTLY 4
-            if (filledCount !== 4) {
-              // RED ERROR - block submission
-              if (filledCount < 4) {
-                errorMsg.innerHTML = \`⚠️ <strong>Not enough players!</strong><br>You entered scores for \${filledCount} player\${filledCount === 1 ? '' : 's'}. Mahjong requires exactly 4 players.\`;
-              } else {
-                errorMsg.innerHTML = \`⚠️ <strong>Too many players!</strong><br>You entered scores for \${filledCount} players. Mahjong requires exactly 4 players.\`;
-              }
-              errorMsg.style.display = 'block';
-              
-              // Highlight filled fields with red
-              players.forEach(p => {
-                const val = document.getElementById(p).value.trim();
-                if (val !== "") {
-                  document.getElementById(p).classList.add('error-field');
-                }
-              });
-              
-              return; // STOP EXECUTION
-            }
+    h3 { margin-bottom: 8px; }
 
-            // VALIDATION 2: Scores must sum to 0
-            const sum = Object.values(scores).reduce((a, b) => a + b, 0);
-            if (Math.abs(sum) > 0.001) {
-              errorMsg.innerHTML = \`⚠️ <strong>Scores must sum to 0!</strong><br>Current sum: \${sum.toFixed(1)}\`;
-              errorMsg.style.display = 'block';
-              
-              // Highlight all filled fields with red
-              players.forEach(p => {
-                const val = document.getElementById(p).value.trim();
-                if (val !== "") {
-                  document.getElementById(p).classList.add('error-field');
-                }
-              });
-              
-              return; // STOP EXECUTION
-            }
+    .instructions {
+      background: #e8f0fe;
+      border-left: 4px solid #1a73e8;
+      padding: 10px 12px;
+      margin-bottom: 14px;
+      font-size: 12px;
+      color: #333;
+      line-height: 1.5;
+    }
 
-            // If we get here, validation passed
-            document.querySelector('.submit').disabled = true;
-            document.querySelector('.submit').textContent = 'Saving...';
+    .instructions strong {
+      display: block;
+      margin-bottom: 4px;
+      color: #1a73e8;
+    }
 
-            google.script.run
-              .withSuccessHandler(() => {
-                document.body.innerHTML = \`
-                  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100px;gap:12px;font-family:Arial;">
-                    <div style="font-size:28px">✅</div>
-                    <div style="font-size:14px;color:#333;">Game added successfully!</div>
-                  </div>
-                \`;
-                setTimeout(() => google.script.host.close(), 1500);
-              })
-              .withFailureHandler(err => {
-                errorMsg.textContent = "Error: " + err.message;
-                errorMsg.style.display = 'block';
-                document.querySelector('.submit').disabled = false;
-                document.querySelector('.submit').textContent = 'Add Game';
-              })
-              .submitGame(scores);
-          }
-        <\/script>
-      </body>
-    </html>
+    .instructions ul {
+      margin: 4px 0 0 0;
+      padding-left: 18px;
+    }
+
+    .search-box {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    .player-list {
+      max-height: 120px;
+      overflow-y: auto;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      margin-bottom: 12px;
+    }
+
+    .player-item {
+      padding: 6px 10px;
+      cursor: pointer;
+    }
+
+    .player-item:hover {
+      background: #f1f3f4;
+    }
+
+    .selected {
+      background: #d2e3fc;
+      font-weight: bold;
+    }
+
+    .scores {
+      margin-top: 10px;
+    }
+
+    .field {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    input[type="number"] {
+      width: 40%;
+      padding: 6px;
+    }
+
+    .error {
+      color: #d93025;
+      font-size: 12px;
+      margin-top: 8px;
+      display: none;
+      background: #fce8e6;
+      padding: 8px;
+      border-radius: 4px;
+    }
+
+    .btn-row {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    button {
+      padding: 7px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .submit { background: #1a73e8; color: white; }
+    .cancel { background: #eee; }
+
+    button:disabled {
+      background: #aaa;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+
+<body>
+  <h3>Enter Game Scores</h3>
+
+  <div class="instructions">
+    <strong>📋 Instructions (exactly 4 players per game):</strong>
+    <ul>
+      <li><strong>Select exactly 4 players</strong> using the search box</li>
+      <li><strong>Enter scores</strong> for those 4 players</li>
+      <li><strong>Scores must sum to 0</strong></li>
+      <li>All selected players default to <strong>0</strong></li>
+    </ul>
+  </div>
+
+  <input 
+    class="search-box" 
+    placeholder="Search players..." 
+    oninput="filterPlayers(this.value)" 
+  />
+
+  <div id="playerList" class="player-list"></div>
+
+  <div id="scoreInputs" class="scores"></div>
+
+  <div id="error" class="error"></div>
+
+  <div class="btn-row">
+    <button class="cancel" onclick="google.script.host.close()">Cancel</button>
+    <button class="submit" onclick="submitScores()">Add Game</button>
+  </div>
+
+<script>
+  const allPlayers = ${JSON.stringify(players)};
+  let selected = [];
+
+  function renderPlayers(list) {
+    const container = document.getElementById("playerList");
+    container.innerHTML = "";
+
+    list.forEach(p => {
+      const div = document.createElement("div");
+      div.className = "player-item" + (selected.includes(p) ? " selected" : "");
+      div.textContent = p;
+
+      div.onclick = () => togglePlayer(p);
+
+      container.appendChild(div);
+    });
+  }
+
+  function filterPlayers(query) {
+    const filtered = allPlayers.filter(p =>
+      p.toLowerCase().includes(query.toLowerCase())
+    );
+    renderPlayers(filtered);
+  }
+
+  function togglePlayer(player) {
+    const idx = selected.indexOf(player);
+
+    if (idx > -1) {
+      selected.splice(idx, 1);
+    } else {
+      if (selected.length >= 4) return;
+      selected.push(player);
+    }
+
+    renderPlayers(allPlayers);
+    renderScoreInputs();
+  }
+
+  function renderScoreInputs() {
+    const container = document.getElementById("scoreInputs");
+    container.innerHTML = "";
+
+    selected.forEach(p => {
+      const div = document.createElement("div");
+      div.className = "field";
+
+      div.innerHTML = \`
+        <label>\${p}</label>
+        <input type="number" id="score_\${p}" value="0" />
+      \`;
+
+      container.appendChild(div);
+    });
+  }
+
+  function submitScores() {
+    const error = document.getElementById("error");
+    error.style.display = "none";
+
+    if (selected.length !== 4) {
+      error.innerHTML = "⚠️ <strong>You must select exactly 4 players.</strong>";
+      error.style.display = "block";
+      return;
+    }
+
+    const scores = {};
+    let sum = 0;
+
+    selected.forEach(p => {
+      const val = parseFloat(document.getElementById("score_" + p).value) || 0;
+      scores[p] = val;
+      sum += val;
+    });
+
+    if (Math.abs(sum) > 0.001) {
+      error.innerHTML = \`⚠️ <strong>Scores must sum to 0!</strong><br>Current sum: \${sum.toFixed(1)}\`;
+      error.style.display = "block";
+      return;
+    }
+
+    document.querySelector(".submit").disabled = true;
+    document.querySelector(".submit").textContent = "Saving...";
+
+    google.script.run
+      .withSuccessHandler(() => {
+        document.body.innerHTML = "<h3>✅ Game added successfully!</h3>";
+        setTimeout(() => google.script.host.close(), 1200);
+      })
+      .withFailureHandler(err => {
+        error.textContent = err.message;
+        error.style.display = "block";
+        document.querySelector(".submit").disabled = false;
+        document.querySelector(".submit").textContent = "Add Game";
+      })
+      .submitGame(scores);
+  }
+
+  renderPlayers(allPlayers);
+</script>
+
+</body>
+</html>
   `;
 }
 
