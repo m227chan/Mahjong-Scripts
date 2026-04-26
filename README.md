@@ -59,12 +59,31 @@ A real-time visualization showing:
 - Automatic fallback labels ("Game 1", "Game 2", etc.) if timestamps unavailable
 - Point markers at each game for precise value reading
 
+### 🌐 Player Network Graph
+A network visualization showing player connections and co-play frequency:
+
+#### Network Features
+- **Interactive Graph Visualization**: Displays players as nodes and games together as edges
+- **Connection Strength**: Edge thickness represents how many games two players have played together
+- **Temporal Filtering**: Configurable date range to analyze recent or historical player interactions
+- **Default Timeframe**: Shows games from April 25, 2026 onward by default
+- **Node Identification**: Hover over players to see their names and connection counts
+- **Zoom & Pan**: Interactive exploration of the network graph
+- **Force-Directed Layout**: Automatically arranges nodes to show relationship clusters
+
+#### Insights
+- Identify core player groups and frequent co-players
+- Visualize friendship/team dynamics through connection frequency
+- Analyze player availability and participation patterns over time
+- Understand the social structure within the Mahjong club
+
 ## Technical Stack
 
 - **JavaScript (Google Apps Script)** - Core scripting logic
 - **Google Sheets API** - Data storage and manipulation
 - **HTML/CSS** - Interactive dialogs and dashboard UI
 - **Chart.js** - Dashboard visualization library
+- **Vis.js** - Network graph visualization
 - **Python** - Supporting utilities
 
 ## How to Use
@@ -93,6 +112,13 @@ A real-time visualization showing:
 3. Click legend entries to focus on specific players
 4. Analyze performance patterns across the season
 
+### Viewing Player Network
+1. Click **🀄 Mahjong Club Menu** → **🌐 Player Network**
+2. Explore the interactive network graph showing player connections
+3. Larger edges indicate more games played together
+4. Use zoom and pan to navigate the network
+5. Observe clustering patterns to understand player groups
+
 ## File Structure
 
 - `code.gs` - Main Google Apps Script containing:
@@ -101,12 +127,18 @@ A real-time visualization showing:
   - Game submission (`addNewGame()`, `submitGame()`)
   - Dialog UI generation (`buildGameDialog()`)
   - Dashboard data retrieval (`getGameData()`)
+  - Network data retrieval (`getPlayerNetwork()`)
   - Helper utilities (`columnToLetter()`)
 - `dashboard.html` - Interactive dashboard visualization with Chart.js integration:
   - Cumulative score tracking
   - Bump chart for ranking analysis
   - Legend-based filtering
   - Responsive chart containers
+- `network.html` - Player network visualization with Vis.js integration:
+  - Force-directed graph layout
+  - Interactive node and edge rendering
+  - Zoom and pan controls
+  - Connection frequency indicators
 
 ## Validation Rules
 
@@ -136,6 +168,8 @@ Auto-generated rankings with dynamic formulas tracking player performance.
 - [ ] Photo upload for players
 - [ ] Advanced filtering by date range on dashboard
 - [ ] Statistical comparison tools
+- [ ] Network graph date range filtering UI
+- [ ] Export network graph as image
 
 ## License
 
