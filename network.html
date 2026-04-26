@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #2d3748;
+      overflow: hidden;
+    }
+
+    .header {
+      background: rgba(255, 255, 255, 0.98);
+      padding: 20px 32px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      border-bottom: 3px solid #667eea;
+    }
+
+    .header h1 {
+      font-size: 24px;
+      font-weight: 700;
+      color: #1a202c;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 4px;
+    }
+
+    .header .subtitle {
+      font-size: 13px;
+      color: #718096;
+      font-weight: 400;
+    }
+
+    .controls-section {
+      background: rgba(255, 255, 255, 0.95);
+      padding: 16px 32px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .control-group {
+      margin-bottom: 12px;
+    }
+
+    .control-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .control-group label {
+      display: block;
+      font-weight: 600;
+      font-size: 12px;
+      color: #4a5568;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .control-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    .select2-container {
+      width: 100% !important;
+    }
+
+    .select2-container--default .select2-selection--multiple {
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      min-height: 40px;
+      padding: 4px;
+      transition: all 0.2s;
+    }
+
+    .select2-container--default.select2-container--focus .select2-selection--multiple {
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .select2-container--default .select2-selection--multiple .select2-selection__choice {
+      background-color: #667eea;
+      border: none;
+      color: white;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      margin: 3px;
+    }
+
+    .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+      color: rgba(255, 255, 255, 0.8);
+      margin-right: 6px;
+      font-weight: bold;
+    }
+
+    .select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover {
+      color: white;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .btn-primary {
+      background: #667eea;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #5568d3;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+    }
+
+    .btn-secondary {
+      background: #e2e8f0;
+      color: #4a5568;
+    }
+
+    .btn-secondary:hover {
+      background: #cbd5e0;
+    }
+
+    .threshold-control {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #f7fafc;
+      padding: 6px 12px;
+      border-radius: 6px;
+    }
+
+    .threshold-control label {
+      margin: 0;
+      font-size: 12px;
+      font-weight: 600;
+      color: #4a5568;
+    }
+
+    input[type="range"] {
+      width: 140px;
+      height: 6px;
+      border-radius: 3px;
+      background: #e2e8f0;
+      outline: none;
+      -webkit-appearance: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #667eea;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #667eea;
+      cursor: pointer;
+      border: none;
+    }
+
+    .threshold-value {
+      min-width: 20px;
+      text-align: center;
+      font-weight: 700;
+      color: #667eea;
+      font-size: 13px;
+    }
+
+    input[type="date"] {
+      padding: 6px 8px;
+      border: 2px solid #e2e8f0;
+      border-radius: 6px;
+      font-size: 12px;
+      color: #4a5568;
+      transition: all 0.2s;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    input[type="date"]:focus {
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      outline: none;
+    }
+
+    #network {
+      width: 100%;
+      height: calc(100vh - 220px);
+      position: relative;
+      background: white;
+    }
+
+    .loading {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.95);
+      flex-direction: column;
+      z-index: 10;
+    }
+
+    .loading-spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid #e2e8f0;
+      border-top-color: #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 16px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .mode-indicator {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: rgba(102, 126, 234, 0.9);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      z-index: 5;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .stats-overlay {
+      position: absolute;
+      bottom: 16px;
+      left: 16px;
+      background: rgba(255, 255, 255, 0.95);
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      z-index: 5;
+    }
+
+    .stats-overlay .stat-row {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 4px;
+    }
+
+    .stats-overlay .stat-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .stats-overlay .stat-label {
+      color: #718096;
+      font-weight: 600;
+    }
+
+    .stats-overlay .stat-value {
+      color: #2d3748;
+      font-weight: 700;
+    }
+
+    @media (max-width: 768px) {
+      .header, .controls-section {
+        padding-left: 16px;
+        padding-right: 16px;
+      }
+
+      .control-row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .btn {
+        width: 100%;
+      }
+
+      .threshold-control {
+        width: 100%;
+      }
+
+      #network {
+        height: calc(100vh - 280px);
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="header">
+  <h1>🌐 Player Network Graph</h1>
+  <p class="subtitle">Visualize player relationships based on games played together (since April 25, 2026)</p>
+</div>
+
+<div class="controls-section">
+  <div class="control-group">
+    <label for="playerSelect">Select Players</label>
+    <select id="playerSelect" multiple style="width:100%"></select>
+  </div>
+
+  <div class="control-row">
+    <button class="btn btn-primary" onclick="updateGraph()">Update Graph</button>
+    <button class="btn btn-secondary" onclick="selectAll()">Select All</button>
+    <button class="btn btn-secondary" onclick="clearAll()">Clear All</button>
+
+    <div class="threshold-control">
+      <label>Min Games:</label>
+      <input type="range" id="threshold" min="1" max="10" value="1" oninput="updateGraph()" />
+      <span class="threshold-value" id="thresholdVal">1</span>
+    </div>
+
+    <!-- NEW DATE FILTER -->
+    <div class="date-control threshold-control">
+      <label for="dateFilter">Date Played:</label>
+      <input type="date" id="dateFilter" onchange="updateGraph()">
+    </div>
+  </div>
+</div>
+
+<div id="network">
+  <div class="loading" id="loading">
+    <div class="loading-spinner"></div>
+    <div style="color: #718096; font-size: 14px;">Loading network data...</div>
+  </div>
+</div>
+
+<script>
+
+let allPlayers = [];
+let rawRows = [];
+let network;
+
+// Initialize - load data from Google Sheets
+google.script.run
+  .withSuccessHandler(init)
+  .withFailureHandler(err => {
+    console.error('Error loading data:', err);
+    document.getElementById('loading').innerHTML = `
+      <div style="color: #e53e3e; font-size: 14px;">Error loading data: ${err.message}</div>
+    `;
+  })
+  .getRawGameData();
+
+function init(res) {
+  console.log('Data received:', res);
+
+  if (!res || !res.players || !res.rows) {
+    document.getElementById('loading').innerHTML =
+      `<div style="color: #e53e3e;">Error: Invalid data structure received</div>`;
+    return;
+  }
+
+  allPlayers = res.players;
+  rawRows = res.rows;
+
+  const $select = $('#playerSelect');
+  $select.empty(); // Clear any existing options
+
+  // Add options
+  allPlayers.forEach(p => {
+    const newOption = new Option(p, p, true, true);
+    $select.append(newOption);
+  });
+
+  // Initialize Select2 AFTER appending options
+  $select.select2({
+    placeholder: "Select players to visualize",
+    closeOnSelect: false,
+    width: '100%'
+  });
+
+  // NEW: Initialize date filter
+  if (rawRows.length > 0) {
+      const dates = rawRows.map(row => parseDate(row[0])).filter(d => d instanceof Date && !isNaN(d));
+      if (dates.length > 0) {
+          const minDate = new Date(Math.min(...dates));
+          const maxDate = new Date(Math.max(...dates));
+
+          const dateInput = document.getElementById('dateFilter');
+          dateInput.min = formatDateToISO(minDate);
+          dateInput.max = formatDateToISO(maxDate);
+          dateInput.value = formatDateToISO(maxDate); // Default to the latest date
+      }
+  }
+
+  document.getElementById("loading").style.display = "none";
+  drawGraph(allPlayers);
+}
+
+function getThreshold() {
+  const t = document.getElementById("threshold").value;
+  document.getElementById("thresholdVal").innerText = t;
+  return parseInt(t);
+}
+
+function updateGraph() {
+  const selected = $('#playerSelect').val() || [];
+  drawGraph(selected);
+}
+
+function selectAll() {
+  $('#playerSelect').val(allPlayers).trigger('change');
+  drawGraph(allPlayers);
+}
+
+function clearAll() {
+  $('#playerSelect').val(null).trigger('change');
+  drawGraph([]);
+}
+
+function drawGraph(selectedPlayers) {
+  console.log('drawGraph called with:', selectedPlayers);
+
+  const threshold = getThreshold();
+  const cutoffDate = new Date(2026, 3, 25); // April 25, 2026 (month is 0-indexed)
+
+  // NEW: Get selected date from filter
+  const selectedDateStr = document.getElementById('dateFilter').value;
+  let activeDateFilter = null;
+  if (selectedDateStr) {
+      activeDateFilter = new Date(selectedDateStr);
+      // Set time to start of day for comparison
+      activeDateFilter.setHours(0, 0, 0, 0);
+  }
+
+  console.log('Threshold:', threshold);
+  console.log('Cutoff date:', cutoffDate);
+  console.log('Active Date Filter:', activeDateFilter ? formatDateToISO(activeDateFilter) : 'None');
+  console.log('Raw rows available:', rawRows.length);
+
+  const edgeMap = {};
+
+  // Build edge map from raw game data
+  rawRows.forEach((row, idx) => {
+    const gameDate = parseDate(row[0]);
+    if (!gameDate) return;
+
+    // NEW: Apply date filter
+    const gameDay = new Date(gameDate);
+    gameDay.setHours(0, 0, 0, 0); // Normalize to start of day for comparison
+
+    if (gameDate < cutoffDate) return;
+    if (activeDateFilter && gameDay.getTime() !== activeDateFilter.getTime()) return; // Filter by selected day
+
+    const playersInGame = [];
+
+    // Only look at columns that correspond to players
+    for (let i = 1; i <= allPlayers.length; i++) {
+      const score = row[i];
+      // Only count them if the cell is strictly a number and not empty
+      if (score !== null && score !== "" && typeof score === 'number') {
+        playersInGame.push(allPlayers[i - 1]);
+      }
+    }
+
+    // 🔥 THE CIRCUIT BREAKER:
+    // If a row claims more than 4-5 people played at once,
+    // it's likely the "Totals" row or a mistake. Skip it.
+    if (playersInGame.length > 5) {
+      console.warn(`Row ${idx} skipped: too many players (${playersInGame.length})`);
+      return;
+    }
+
+    // Create pairwise combinations
+    for (let i = 0; i < playersInGame.length; i++) {
+      for (let j = i + 1; j < playersInGame.length; j++) {
+        const key = [playersInGame[i], playersInGame[j]].sort().join("|");
+        edgeMap[key] = (edgeMap[key] || 0) + 1;
+      }
+    }
+  });
+
+  console.log('Total edges created:', Object.keys(edgeMap).length);
+
+  let nodes = [];
+  let edges = [];
+  let mode = "Multi-Select";
+
+  // =========================
+  // MODE 1: EGO GRAPH (1 player selected)
+  // =========================
+  if (selectedPlayers.length === 1) {
+    mode = "Ego Graph";
+    const ego = selectedPlayers[0];
+    const neighborCounts = {};
+
+    // Find all neighbors of the ego player
+    Object.entries(edgeMap).forEach(([key, count]) => {
+      const [a, b] = key.split("|");
+
+      if (a === ego || b === ego) {
+        const other = a === ego ? b : a;
+        neighborCounts[other] = (neighborCounts[other] || 0) + count;
+      }
+    });
+
+    // Create nodes: ego (center) + neighbors
+    nodes = [
+      {
+        id: ego,
+        label: ego,
+        color: { background: '#667eea', border: '#5568d3' },
+        size: 30,
+        font: { size: 14, color: '#1a202c', bold: true }
+      },
+      ...Object.keys(neighborCounts).map(n => ({
+        id: n,
+        label: n,
+        color: { background: '#48bb78', border: '#38a169' },
+        size: 20,
+        font: { size: 12, color: '#1a202c' }
+      }))
+    ];
+
+    // Create edges: only ego to neighbors
+    edges = Object.entries(neighborCounts)
+      .filter(([_, count]) => count >= threshold)
+      .map(([n, count]) => ({
+        from: ego,
+        to: n,
+        label: String(count),
+        width: Math.max(1, Math.log(count + 1) * 3),
+        color: { color: '#a0aec0', highlight: '#667eea' },
+        font: { size: 11, color: '#4a5568', strokeWidth: 0 }
+      }));
+  }
+
+  // =========================
+  // MODE 2: MULTI-SELECT (2+ players or 0 players)
+  // =========================
+  else {
+    const allowed = new Set(selectedPlayers);
+
+    nodes = selectedPlayers.map(p => ({
+      id: p,
+      label: p,
+      color: { background: '#667eea', border: '#5568d3' },
+      size: 20,
+      font: { size: 12, color: '#1a202c' }
+    }));
+
+    // Only include edges where both endpoints are selected
+    edges = Object.entries(edgeMap)
+      .filter(([key, count]) => count >= threshold)
+      .map(([key, count]) => {
+        const [a, b] = key.split("|");
+
+        if (!allowed.has(a) || !allowed.has(b)) return null;
+
+        return {
+          from: a,
+          to: b,
+          label: String(count),
+          width: Math.max(1, Math.log(count + 1) * 3),
+          color: { color: '#a0aec0', highlight: '#667eea' },
+          font: { size: 11, color: '#4a5568', strokeWidth: 0 }
+        };
+      })
+      .filter(Boolean);
+  }
+
+  // Update mode indicator
+  updateModeIndicator(mode, selectedPlayers.length);
+
+  // Update stats overlay - NEW: pass activeDateFilter to it
+  updateStatsOverlay(nodes.length, edges.length, threshold, activeDateFilter);
+
+  const container = document.getElementById("network");
+
+  const data = {
+    nodes: new vis.DataSet(nodes),
+    edges: new vis.DataSet(edges)
+  };
+
+  const options = {
+    physics: false, // Static graph - no movement
+    nodes: {
+      shape: "dot",
+      borderWidth: 2,
+      shadow: {
+        enabled: true,
+        color: 'rgba(0, 0, 0, 0.1)',
+        size: 10,
+        x: 0,
+        y: 2
+      }
+    },
+    edges: {
+      smooth: {
+        enabled: true,
+        type: 'continuous',
+        roundness: 0.5
+      },
+      font: {
+        align: "middle",
+        background: 'rgba(255, 255, 255, 0.8)',
+        strokeWidth: 0
+      }
+    },
+    interaction: {
+      hover: true,
+      tooltipDelay: 200,
+      navigationButtons: true,
+      keyboard: true
+    },
+    layout: {
+      improvedLayout: true,
+      hierarchical: selectedPlayers.length === 1 ? {
+        enabled: true,
+        direction: 'UD',
+        sortMethod: 'directed',
+        nodeSpacing: 150,
+        levelSeparation: 200
+      } : false
+    }
+  };
+
+  if (network) {
+    network.setData(data);
+    network.setOptions(options);
+  } else {
+    network = new vis.Network(container, data, options);
+  }
+}
+
+// Safer date parsing to handle different formats
+function parseDate(v) {
+  if (!v) return null;
+
+  if (v instanceof Date) return v;
+
+  // Try to parse as Date object
+  const d = new Date(v);
+  if (!isNaN(d.getTime())) return d;
+
+  return null;
+}
+
+// Helper to format Date to YYYY-MM-DD for input type="date"
+function formatDateToISO(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function updateModeIndicator(mode, count) {
+  // Remove existing indicator if present
+  const existing = document.querySelector('.mode-indicator');
+  if (existing) existing.remove();
+
+  const indicator = document.createElement('div');
+  indicator.className = 'mode-indicator';
+  indicator.innerHTML = `${mode} • ${count} player${count !== 1 ? 's' : ''}`;
+
+  document.getElementById('network').appendChild(indicator);
+}
+
+// NEW: Add activeDateFilter parameter
+function updateStatsOverlay(nodeCount, edgeCount, threshold, activeDateFilter) {
+  // Remove existing overlay if present
+  const existing = document.querySelector('.stats-overlay');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.className = 'stats-overlay';
+
+  let dateFilterHtml = '';
+  if (activeDateFilter) {
+    dateFilterHtml = `
+      <div class="stat-row">
+        <span class="stat-label">Showing Games From:</span>
+        <span class="stat-value">${formatDateToISO(activeDateFilter)}</span>
+      </div>
+    `;
+  }
+
+  overlay.innerHTML = `
+    <div class="stat-row">
+      <span class="stat-label">Nodes:</span>
+      <span class="stat-value">${nodeCount}</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">Edges:</span>
+      <span class="stat-value">${edgeCount}</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">Min Games Filter:</span>
+      <span class="stat-value">${threshold}</span>
+    </div>
+    ${dateFilterHtml}
+  `;
+
+  document.getElementById('network').appendChild(overlay);
+}
+
+</script>
+
+</body>
+</html>
