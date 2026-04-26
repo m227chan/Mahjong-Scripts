@@ -64,35 +64,40 @@ function addNewPlayer() {
     );
   }
 
-  // Column E: Games Won
+  // Column E: Games Played
   leaderboardSheet.getRange(newLbRow, 5).setFormula(
+    `=COUNTIF(INDEX(INDIRECT("'Game Scores'!$2:$"&(COUNTA('Game Scores'!A$2:A))), 0, MATCH(B${newLbRow}, 'Game Scores'!$1:$1, 0)), "<>")`
+  );
+
+  // Column F: Games Won (shifted from E → F)
+  leaderboardSheet.getRange(newLbRow, 6).setFormula(
     `=COUNTIF(INDEX(INDIRECT("'Game Scores'!$2:$"&(COUNTA('Game Scores'!A:A)-1)), 0, MATCH(B${newLbRow}, 'Game Scores'!$1:$1, 0)), ">0")`
   );
 
-  // Column F: Games Lost
-  leaderboardSheet.getRange(newLbRow, 6).setFormula(
+  // Column G: Games Lost (shifted from F → G)
+  leaderboardSheet.getRange(newLbRow, 7).setFormula(
     `=COUNTIF(INDEX(INDIRECT("'Game Scores'!$2:$"&(COUNTA('Game Scores'!A:A)-1)), 0, MATCH(B${newLbRow}, 'Game Scores'!$1:$1, 0)), "<0")`
   );
 
-  // Column G: Win / Loss Ratio
-  leaderboardSheet.getRange(newLbRow, 7).setFormula(
-    `=IF(F${newLbRow}=0, 0, E${newLbRow}/F${newLbRow})`
+  // Column H: Win / Loss Ratio (shifted from G → H)
+  leaderboardSheet.getRange(newLbRow, 8).setFormula(
+    `=IF(G${newLbRow}=0, 0, F${newLbRow}/G${newLbRow})`
   );
 
-  // Column H: Win / Loss Ratio Rank - Update ALL rows to use dynamic range
+  // Column I: Win / Loss Ratio Rank (shifted from H → I)
   for (let r = 2; r <= newLbRow; r++) {
-    leaderboardSheet.getRange(r, 8).setFormula(
-      `=RANK(G${r}, G$2:G$${newLbRow}, FALSE)`
+    leaderboardSheet.getRange(r, 9).setFormula(
+      `=RANK(H${r}, H$2:H$${newLbRow}, FALSE)`
     );
   }
 
-  // Column I: Highest Single Game Win
-  leaderboardSheet.getRange(newLbRow, 9).setFormula(
+  // Column J: Highest Single Game Win (shifted from I → J)
+  leaderboardSheet.getRange(newLbRow, 10).setFormula(
     `=MAX(INDEX(INDIRECT("'Game Scores'!$2:$"&(COUNTA('Game Scores'!A:A)-1)), 0, MATCH(B${newLbRow}, 'Game Scores'!$1:$1, 0)))`
   );
 
-  // Column J: Highest Single Game Loss
-  leaderboardSheet.getRange(newLbRow, 10).setFormula(
+  // Column K: Highest Single Game Loss (shifted from J → K)
+  leaderboardSheet.getRange(newLbRow, 11).setFormula(
     `=MIN(INDEX(INDIRECT("'Game Scores'!$2:$"&(COUNTA('Game Scores'!A:A)-1)), 0, MATCH(B${newLbRow}, 'Game Scores'!$1:$1, 0)))`
   );
 
@@ -177,10 +182,6 @@ function buildGameDialog(players) {
             border-color: #d93025;
             background-color: #fce8e6;
           }
-          input.warning-field {
-            border-color: #f9ab00;
-            background-color: #fef7e0;
-          }
           .btn-row {
             display: flex;
             justify-content: flex-end;
@@ -208,17 +209,6 @@ function buildGameDialog(players) {
             display: none;
             font-weight: 500;
           }
-          .warning {
-            color: #b36200;
-            font-size: 12px;
-            margin-top: 8px;
-            padding: 8px 12px;
-            background: #fef7e0;
-            border-left: 4px solid #f9ab00;
-            border-radius: 4px;
-            display: none;
-            font-weight: 500;
-          }
         </style>
       </head>
       <body>
@@ -232,7 +222,6 @@ function buildGameDialog(players) {
           </ul>
         </div>
         ${fields}
-        <div class="warning" id="warning-msg"></div>
         <div class="error" id="error-msg"></div>
         <div class="btn-row">
           <button class="cancel" onclick="google.script.host.close()">Cancel</button>
@@ -244,9 +233,9 @@ function buildGameDialog(players) {
             const scores = {};
             let filledCount = 0;
             
-            // Clear any previous error/warning styling
+            // Clear any previous error styling
             players.forEach(p => {
-              document.getElementById(p).classList.remove('error-field', 'warning-field');
+              document.getElementById(p).classList.remove('error-field');
             });
             
             players.forEach(p => {
@@ -259,33 +248,21 @@ function buildGameDialog(players) {
             });
 
             const errorMsg = document.getElementById('error-msg');
-            const warningMsg = document.getElementById('warning-msg');
             
             // Hide previous messages
             errorMsg.style.display = 'none';
-            warningMsg.style.display = 'none';
             
-            // VALIDATION 1: Check player count
-            if (filledCount < 4) {
-              // YELLOW WARNING - but allow submission
-              warningMsg.innerHTML = \`⚠️ <strong>Warning:</strong> You entered scores for \${filledCount} player\${filledCount === 1 ? '' : 's'}. Standard Mahjong has 4 players.\`;
-              warningMsg.style.display = 'block';
-              
-              // Highlight fields with yellow
-              players.forEach(p => {
-                const val = document.getElementById(p).value.trim();
-                if (val !== "") {
-                  document.getElementById(p).classList.add('warning-field');
-                }
-              });
-              
-              // Don't return - allow submission to continue
-            } else if (filledCount > 4) {
+            // VALIDATION 1: Check player count - MUST BE EXACTLY 4
+            if (filledCount !== 4) {
               // RED ERROR - block submission
-              errorMsg.innerHTML = \`⚠️ <strong>Too many players!</strong><br>You entered scores for \${filledCount} players. Mahjong requires exactly 4 players.\`;
+              if (filledCount < 4) {
+                errorMsg.innerHTML = \`⚠️ <strong>Not enough players!</strong><br>You entered scores for \${filledCount} player\${filledCount === 1 ? '' : 's'}. Mahjong requires exactly 4 players.\`;
+              } else {
+                errorMsg.innerHTML = \`⚠️ <strong>Too many players!</strong><br>You entered scores for \${filledCount} players. Mahjong requires exactly 4 players.\`;
+              }
               errorMsg.style.display = 'block';
               
-              // Highlight fields with red
+              // Highlight filled fields with red
               players.forEach(p => {
                 const val = document.getElementById(p).value.trim();
                 if (val !== "") {
@@ -297,26 +274,23 @@ function buildGameDialog(players) {
             }
 
             // VALIDATION 2: Scores must sum to 0
-            if (filledCount > 0) {
-              const sum = Object.values(scores).reduce((a, b) => a + b, 0);
-              if (Math.abs(sum) > 0.001) {
-                errorMsg.innerHTML = \`⚠️ <strong>Scores must sum to 0!</strong><br>Current sum: \${sum.toFixed(1)}\`;
-                errorMsg.style.display = 'block';
-                
-                // Highlight all filled fields with red
-                players.forEach(p => {
-                  const val = document.getElementById(p).value.trim();
-                  if (val !== "") {
-                    document.getElementById(p).classList.remove('warning-field');
-                    document.getElementById(p).classList.add('error-field');
-                  }
-                });
-                
-                return; // STOP EXECUTION
-              }
+            const sum = Object.values(scores).reduce((a, b) => a + b, 0);
+            if (Math.abs(sum) > 0.001) {
+              errorMsg.innerHTML = \`⚠️ <strong>Scores must sum to 0!</strong><br>Current sum: \${sum.toFixed(1)}\`;
+              errorMsg.style.display = 'block';
+              
+              // Highlight all filled fields with red
+              players.forEach(p => {
+                const val = document.getElementById(p).value.trim();
+                if (val !== "") {
+                  document.getElementById(p).classList.add('error-field');
+                }
+              });
+              
+              return; // STOP EXECUTION
             }
 
-            // If we get here, validation passed (or warning accepted)
+            // If we get here, validation passed
             document.querySelector('.submit').disabled = true;
             document.querySelector('.submit').textContent = 'Saving...';
 
