@@ -388,11 +388,11 @@ function submitGame(scores) {
   for (let c = 2; c <= lastCol; c++) {
     const playerName = gamesSheet.getRange(1, c).getValue();
     if (scores.hasOwnProperty(playerName)) {
-      // Player participated - set their score (could be 0, positive, or negative)
       gamesSheet.getRange(newRow, c).setValue(scores[playerName]);
     }
-    // If player not in scores object, leave cell empty (null)
   }
+  // sort leaderboard after update
+  sortLeaderboard();
 }
 
 
@@ -450,4 +450,18 @@ function getGameData() {
   });
 
   return { players: headers, data: result };
+}
+
+function sortLeaderboard() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName("Leaderboard");
+
+  const lastRow = sheet.getLastRow();
+  const lastCol = sheet.getLastColumn();
+
+  if (lastRow <= 2) return; // nothing to sort
+
+  // Sort rows 2 → lastRow by column D (Total Score Rank), ascending
+  sheet.getRange(2, 1, lastRow - 1, lastCol)
+       .sort({ column: 4, ascending: true });
 }
