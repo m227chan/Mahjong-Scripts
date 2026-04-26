@@ -8,6 +8,7 @@ function onOpen() {
     .addItem("Add New Player", "addNewPlayer")
     .addSeparator()
     .addItem("📊 View Dashboard", "showDashboard")
+    .addItem("🌐 Player Network", "showNetwork")
     .addToUi();
 }
 
@@ -391,8 +392,6 @@ function submitGame(scores) {
       gamesSheet.getRange(newRow, c).setValue(scores[playerName]);
     }
   }
-  // sort leaderboard after update
-  sortLeaderboard();
 }
 
 
@@ -452,16 +451,108 @@ function getGameData() {
   return { players: headers, data: result };
 }
 
-function sortLeaderboard() {
+function showNetwork() {
+  const html = HtmlService.createHtmlOutputFromFile("network")
+    .setWidth(1000)
+    .setHeight(650);
+
+  SpreadsheetApp.getUi().showModalDialog(html, "Player Network");
+}
+
+function getPlayerNetwork() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName("Leaderboard");
+  const sheet = ss.getSheetByName("Game Scores");
+  const data = sheet.getDataRange().getValues();
 
-  const lastRow = sheet.getLastRow();
-  const lastCol = sheet.getLastColumn();
+  const players = data[0].slice(1).filter(p => p !== "");
+  const rows = data.slice(1, -1);
 
-  if (lastRow <= 2) return; // nothing to sort
+  const cutoff = new Date(2026, 3, 25); // April = month 3 (0-indexed)
 
-  // Sort rows 2 → lastRow by column D (Total Score Rank), ascending
-  sheet.getRange(2, 1, lastRow - 1, lastCol)
-       .sort({ column: 4, ascending: true });
+  const pairCounts = {};
+
+  rows.forEach(row => {
+    const rawDate = row[0];
+
+    let gameDate;
+    if (rawDate instanceof Date) {
+      gameDate = rawDate;
+    } else {
+      // parse "dd/MM/yyyy HH:mm:ss"
+      const parts = rawDate.split(" ");
+      const [day, month, year] = parts[0].split("/").map(Number);
+      gameDate = new Date(year, month - 1, day);
+    }
+
+    // 🔥 FILTER: only include games on/after cutoff
+    if (gameDate < cutoff) return;
+
+    const activePlayers = [];
+
+    players.forEach((p, i) => {
+      if (row[i + 1] !== "" && row[i + 1] !== null) {
+        activePlayers.push(p);
+      }
+    });
+
+    // count all player pairs
+    for (let i = 0; i < activePlayers.length; i++) {
+      for (let j = i + 1; j < activePlayers.length; j++) {
+        const a = activePlayers[i];
+        const b = activePlayers[j];
+        const key = [a, b].sort().join("|");
+
+        pairCounts[key] = (pairCounts[key] || 0) + 1;
+      }
+    }
+  });
+
+  const edges = Object.entries(pairCounts).map(([key, count]) => {
+    const [from, to] = key.split("|");
+    return { from, to, count };
+  });
+
+  return { players, edges };
+}
+
+/**
+ * Retrieves game data, filtering out summary rows and sanitizing for the frontend.
+ */
+function getRawGameData() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName("Game Scores");
+  if (!sheet) return { players: [], rows: [] };
+
+  const data = sheet.getDataRange().getValues();
+  const players = data[0].slice(1).filter(h => h !== "");
+  
+  const rows = data.filter((row, index) => {
+    if (index === 0) return false; // Skip header
+    
+    const firstCell = String(row[0]).trim();
+    
+    // Kill the summary/footer row and empty rows
+    if (firstCell.toLowerCase() === "totals" || firstCell === "" || firstCell.toLowerCase() === "total") {
+      return false;
+    }
+    return true;
+  });
+
+  // Convert Date objects to ISO strings so they don't break the JSON transfer
+  const sanitizedRows = rows.map(row => {
+    return row.map(cell => {
+      if (cell instanceof Date) return cell.toISOString();
+      return (cell === undefined || cell === "") ? null : cell;
+    });
+  });
+
+  return { players, rows: sanitizedRows };
+}
+
+// Ensure showNetwork points to the correct HTML file
+function showNetwork() {
+  const html = HtmlService.createHtmlOutputFromFile("network")
+    .setWidth(1000)
+    .setHeight(750); // Increased height for new filters
+  SpreadsheetApp.getUi().showModalDialog(html, "🌐 Player Network");
 }
