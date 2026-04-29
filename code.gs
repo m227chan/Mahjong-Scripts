@@ -4,8 +4,8 @@
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu("🀄 Mahjong Club Menu")
-    .addItem("Add New Game", "addNewGame")
-    .addItem("Add New Game (Fan Scoring)", "addNewGameFan")
+    // .addItem("Add New Game", "addNewGame")
+    .addItem("Add New Game", "addNewGameFan")
     .addItem("Add New Player", "addNewPlayer")
     .addSeparator()
     .addItem("📊 View Dashboard", "showDashboard")
@@ -401,6 +401,33 @@ function buildFanGameDialog(players) {
       color: #4a5568;
       margin-bottom: 6px;
     }
+
+    /* Chips Styling */
+    .selected-chips-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .chip {
+      background-color: #667eea;
+      color: white;
+      border-radius: 16px;
+      padding: 4px 12px;
+      display: flex;
+      align-items: center;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .chip .remove-btn {
+      margin-left: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      line-height: 1;
+    }
+    .chip .remove-btn:hover {
+      color: #feb2b2;
+    }
     
     select, input[type="number"], input[type="text"] {
       width: 100%;
@@ -415,11 +442,6 @@ function buildFanGameDialog(players) {
       outline: none;
       border-color: #667eea;
       box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    }
-
-    select[multiple] {
-      height: 80px;
-      background: #f7fafc;
     }
 
     .player-list {
@@ -443,16 +465,6 @@ function buildFanGameDialog(players) {
       font-weight: 600;
       color: #2b6cb0;
     }
-    .player-item:last-child {
-      border-bottom: none;
-    }
-
-    .selected-players-container {
-      background: #f7fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 6px;
-      padding: 10px;
-    }
 
     .winner-radio-item {
       display: flex;
@@ -464,16 +476,9 @@ function buildFanGameDialog(players) {
       border: 1px solid #e2e8f0;
       cursor: pointer;
     }
-    .winner-radio-item:last-child {
-      margin-bottom: 0;
-    }
     .winner-radio-item input[type="radio"] {
       width: auto;
       margin-right: 12px;
-      cursor: pointer;
-    }
-    .winner-radio-item:hover {
-      border-color: #cbd5e0;
     }
     
     .checkbox-group {
@@ -484,16 +489,7 @@ function buildFanGameDialog(players) {
       background: #f7fafc;
       border-radius: 6px;
       cursor: pointer;
-      user-select: none;
       border: 1px solid #e2e8f0;
-    }
-    .checkbox-group:hover {
-      background: #edf2f7;
-    }
-    input[type="checkbox"] {
-      width: 20px;
-      height: 20px;
-      cursor: pointer;
     }
     .checkbox-group label {
       margin: 0;
@@ -508,12 +504,6 @@ function buildFanGameDialog(players) {
       border-radius: 8px;
       margin-bottom: 16px;
     }
-    .preview-title {
-      font-size: 14px;
-      opacity: 0.9;
-      margin-bottom: 12px;
-      font-weight: 600;
-    }
     .preview-scores {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -523,20 +513,9 @@ function buildFanGameDialog(players) {
       background: rgba(255,255,255,0.15);
       padding: 10px 12px;
       border-radius: 6px;
-      backdrop-filter: blur(10px);
-    }
-    .score-player {
-      font-size: 13px;
-      opacity: 0.95;
-      margin-bottom: 4px;
-    }
-    .score-value {
-      font-size: 20px;
-      font-weight: 700;
     }
     .score-value.positive { color: #48bb78; }
     .score-value.negative { color: #f56565; }
-    .score-value.zero { color: #cbd5e0; }
     
     .btn-row {
       display: flex;
@@ -549,31 +528,22 @@ function buildFanGameDialog(players) {
       border: none;
       border-radius: 6px;
       cursor: pointer;
-      font-size: 14px;
       font-weight: 600;
-      transition: all 0.2s;
     }
     .submit { background: #667eea; color: white; }
-    .submit:hover { background: #5568d3; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4); }
-    .submit:disabled { background: #cbd5e0; cursor: not-allowed; transform: none; box-shadow: none; }
-    .cancel { background: #e2e8f0; color: #4a5568; }
-    .cancel:hover { background: #cbd5e0; }
+    .submit:disabled { background: #cbd5e0; cursor: not-allowed; }
+    .cancel { background: #e2e8f0; }
     
     .error {
       color: #c53030;
-      font-size: 13px;
-      margin-top: 8px;
-      padding: 10px 12px;
+      padding: 10px;
       background: #fff5f5;
       border-radius: 6px;
-      border-left: 4px solid #fc8181;
       display: none;
-      font-weight: 500;
     }
     .hidden { display: none; }
-    .fan-info { font-size: 12px; color: #718096; margin-top: 6px; font-weight: 600; }
     .step-badge {
-      background: #e2e8f0; color: #4a5568; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-right: 8px; font-weight: 700;
+      background: #e2e8f0; color: #4a5568; padding: 2px 8px; border-radius: 12px; margin-right: 8px;
     }
   </style>
 </head>
@@ -582,15 +552,17 @@ function buildFanGameDialog(players) {
   
   <div class="instructions">
     <strong>📋 Quick Guide:</strong><br>
-    1. Select exactly 4 participants from the list.<br>
-    2. Choose the winner using the radio button next to their name.<br>
-    3. Enter the Fan won (3-13).<br>
-    4. Toggle Self-Draw or select a single loser. Everything else auto-calculates!
+    1. Select exactly 4 participants.<br>
+    2. Choose winner, enter Fan (3-13).<br>
+    3. Toggle Self-Draw or select loser.
   </div>
   
   <div class="card" id="step1Card">
     <div class="form-group">
       <label><span class="step-badge">1</span>Select 4 Participants (<span id="countDisplay">0</span>/4)</label>
+      
+      <div id="selectedChips" class="selected-chips-container"></div>
+
       <input type="text" id="playerSearch" onkeyup="filterPlayerSearch()" placeholder="Search to filter players..." />
       <div id="playerList" class="player-list"></div>
     </div>
@@ -605,14 +577,14 @@ function buildFanGameDialog(players) {
     <div class="form-group">
       <label><span class="step-badge">3</span>Fan Won (3-13+)</label>
       <input type="number" id="fan" min="3" max="13" placeholder="Enter fan (3-13)" oninput="processUpdates()" />
-      <div class="fan-info" id="fanInfo"></div>
+      <div id="fanInfo" style="font-size:12px; color:#718096; margin-top:5px;"></div>
     </div>
     
     <div class="form-group">
       <label><span class="step-badge">4</span>Self-Draw & Losers</label>
-      <div class="checkbox-group" onclick="toggleSelfDraw()">
+      <div class="checkbox-group" onclick="document.getElementById('selfDraw').click()">
         <input type="checkbox" id="selfDraw" onchange="processUpdates()" onclick="event.stopPropagation()" />
-        <label>Self-Draw (自摸)</label>
+        <label for="selfDraw">Self-Draw (自摸)</label>
       </div>
     </div>
     
@@ -622,20 +594,10 @@ function buildFanGameDialog(players) {
         <option value="">Select loser...</option>
       </select>
     </div>
-
-    <div class="form-group hidden" id="participantsGroup">
-      <label>Other Participants (Auto-Calculated 0 points)</label>
-      <select id="participants" multiple disabled></select>
-    </div>
-    
-    <div class="form-group hidden" id="losersGroup">
-      <label>Losers (Auto-Calculated)</label>
-      <select id="losers" multiple disabled></select>
-    </div>
   </div>
   
   <div class="preview-card hidden" id="previewCard">
-    <div class="preview-title">📊 Final Score Preview</div>
+    <div style="font-size:14px; margin-bottom:10px; font-weight:600;">📊 Final Score Preview</div>
     <div class="preview-scores" id="previewScores"></div>
   </div>
   
@@ -656,10 +618,8 @@ function buildFanGameDialog(players) {
     9: 96, 10: 128, 11: 192, 12: 256, 13: 384
   };
 
-  // Initialization
   renderSearchList(allPlayers);
 
-  // Search & Filter List
   function filterPlayerSearch() {
     const query = document.getElementById('playerSearch').value.toLowerCase();
     const filtered = allPlayers.filter(p => p.toLowerCase().includes(query));
@@ -670,9 +630,10 @@ function buildFanGameDialog(players) {
     const container = document.getElementById("playerList");
     container.innerHTML = "";
     list.forEach(p => {
+      const isSelected = selectedParticipants.includes(p);
       const div = document.createElement("div");
-      div.className = "player-item" + (selectedParticipants.includes(p) ? " selected" : "");
-      div.innerHTML = p + (selectedParticipants.includes(p) ? " ✓" : "");
+      div.className = "player-item" + (isSelected ? " selected" : "");
+      div.innerHTML = p + (isSelected ? " ✓" : "");
       div.onclick = () => toggleParticipant(p);
       container.appendChild(div);
     });
@@ -688,9 +649,23 @@ function buildFanGameDialog(players) {
       selectedParticipants.push(player);
     }
     
+    renderChips();
+    updateStepVisibility();
+    filterPlayerSearch(); // Update list checkmarks
+  }
+
+  function renderChips() {
+    const container = document.getElementById("selectedChips");
+    container.innerHTML = selectedParticipants.map(p => \`
+      <div class="chip">
+        \${p}
+        <span class="remove-btn" onclick="toggleParticipant('\${p}')">&times;</span>
+      </div>
+    \`).join('');
     document.getElementById('countDisplay').textContent = selectedParticipants.length;
-    renderSearchList(allPlayers); // Re-render to show checks
-    
+  }
+
+  function updateStepVisibility() {
     if (selectedParticipants.length === 4) {
       document.getElementById('step2Card').classList.remove('hidden');
       renderSelectedWinnerList();
@@ -718,17 +693,7 @@ function buildFanGameDialog(players) {
 
   function setWinner(player) {
     currentWinner = player;
-    
-    // Reset the loser selection if the winner changes
-    const loserSelect = document.getElementById('loser');
-    loserSelect.value = "";
-    
-    processUpdates();
-  }
-
-  function toggleSelfDraw() {
-    const cb = document.getElementById('selfDraw');
-    cb.checked = !cb.checked;
+    document.getElementById('loser').value = "";
     processUpdates();
   }
 
@@ -738,46 +703,23 @@ function buildFanGameDialog(players) {
     const fan = parseInt(document.getElementById('fan').value) || 0;
     const isSelfDraw = document.getElementById('selfDraw').checked;
     
-    // Update Fan Info
     if (fan >= 3 && fan <= 13) {
-      const points = fan === 13 ? 384 : (fanToPoints[fan] || 0);
-      document.getElementById('fanInfo').textContent = \`Base Value = \${points} points\`;
+      const pts = fan === 13 ? 384 : (fanToPoints[fan] || 0);
+      document.getElementById('fanInfo').textContent = \`Base Value = \${pts} points\`;
     } else {
       document.getElementById('fanInfo').textContent = '';
     }
 
     const nonWinners = selectedParticipants.filter(p => p !== currentWinner);
 
-    // Setup Dropdowns Context Based on Self-Draw
-    if (isSelfDraw && currentWinner) {
+    if (isSelfDraw) {
       document.getElementById('loserGroup').classList.add('hidden');
-      document.getElementById('participantsGroup').classList.add('hidden');
-      document.getElementById('losersGroup').classList.remove('hidden');
-      
-      // Auto-populate 3 losers
-      const losersSelect = document.getElementById('losers');
-      losersSelect.innerHTML = nonWinners.map(p => \`<option value="\${p}" selected>\${p}</option>\`).join('');
-      
-    } else if (!isSelfDraw && currentWinner) {
+    } else if (currentWinner) {
       document.getElementById('loserGroup').classList.remove('hidden');
-      document.getElementById('participantsGroup').classList.remove('hidden');
-      document.getElementById('losersGroup').classList.add('hidden');
-      
-      // Setup Loser Selection
       const loserSelect = document.getElementById('loser');
-      const currentLoser = loserSelect.value;
-      
+      const prevVal = loserSelect.value;
       loserSelect.innerHTML = '<option value="">Select loser...</option>' + 
-        nonWinners.map(p => \`<option value="\${p}" \${p === currentLoser ? 'selected' : ''}>\${p}</option>\`).join('');
-      
-      // Auto-populate 2 other participants if loser is selected
-      const participantsSelect = document.getElementById('participants');
-      if (loserSelect.value) {
-        const others = nonWinners.filter(p => p !== loserSelect.value);
-        participantsSelect.innerHTML = others.map(p => \`<option value="\${p}" selected>\${p}</option>\`).join('');
-      } else {
-        participantsSelect.innerHTML = "";
-      }
+        nonWinners.map(p => \`<option value="\${p}" \${p === prevVal ? 'selected' : ''}>\${p}</option>\`).join('');
     }
 
     renderPreview();
@@ -789,20 +731,14 @@ function buildFanGameDialog(players) {
     const loser = document.getElementById('loser').value;
     const btn = document.getElementById('submitBtn');
     
-    btn.disabled = true; // Default disable
-
-    if (!currentWinner || fan < 3) {
+    if (!currentWinner || fan < 3 || (!isSelfDraw && !loser)) {
       document.getElementById('previewCard').classList.add('hidden');
-      return;
-    }
-    
-    // Validation check before rendering final points
-    if (!isSelfDraw && !loser) {
-      document.getElementById('previewCard').classList.add('hidden');
+      btn.disabled = true;
       return;
     }
 
     document.getElementById('previewCard').classList.remove('hidden');
+    btn.disabled = false;
     
     const basePoints = fan >= 13 ? 384 : (fanToPoints[fan] || 0);
     const scores = {};
@@ -811,65 +747,47 @@ function buildFanGameDialog(players) {
     if (isSelfDraw) {
       scores[currentWinner] = basePoints * 3;
       nonWinners.forEach(l => scores[l] = -basePoints);
-      btn.disabled = false;
     } else {
       scores[currentWinner] = basePoints * 2;
       scores[loser] = -basePoints * 2;
-      const others = nonWinners.filter(p => p !== loser);
-      others.forEach(p => scores[p] = 0);
-      btn.disabled = false;
+      nonWinners.filter(p => p !== loser).forEach(p => scores[p] = 0);
     }
     
-    const html = Object.entries(scores).map(([player, score]) => {
-      const sign = score > 0 ? '+' : '';
-      const colorClass = score > 0 ? 'positive' : (score < 0 ? 'negative' : 'zero');
-      const badge = player === currentWinner ? '👑 ' : (score < 0 ? '💥 ' : '👁️ ');
-      return \`
-        <div class="score-item">
-          <div class="score-player">\${badge}\${player}</div>
-          <div class="score-value \${colorClass}">\${sign}\${score}</div>
-        </div>
-      \`;
-    }).join('');
-    
-    document.getElementById('previewScores').innerHTML = html;
+    document.getElementById('previewScores').innerHTML = Object.entries(scores).map(([player, score]) => \`
+      <div class="score-item">
+        <div style="font-size:12px; opacity:0.8;">\${player === currentWinner ? '👑' : '👤'} \${player}</div>
+        <div class="score-value \${score > 0 ? 'positive' : (score < 0 ? 'negative' : '')}">\${score > 0 ? '+' : ''}\${score}</div>
+      </div>
+    \`).join('');
   }
   
   function submitFanGame() {
-    const error = document.getElementById('error');
-    error.style.display = 'none';
-    
     const fan = parseInt(document.getElementById('fan').value) || 0;
     const isSelfDraw = document.getElementById('selfDraw').checked;
     const loser = document.getElementById('loser').value;
-    
     const basePoints = fan >= 13 ? 384 : (fanToPoints[fan] || 0);
     const scores = {};
-    const nonWinners = selectedParticipants.filter(p => p !== currentWinner);
     
     if (isSelfDraw) {
       scores[currentWinner] = basePoints * 3;
-      nonWinners.forEach(l => scores[l] = -basePoints);
+      selectedParticipants.filter(p => p !== currentWinner).forEach(l => scores[l] = -basePoints);
     } else {
       scores[currentWinner] = basePoints * 2;
       scores[loser] = -basePoints * 2;
-      const others = nonWinners.filter(p => p !== loser);
-      others.forEach(p => scores[p] = 0);
+      selectedParticipants.filter(p => p !== currentWinner && p !== loser).forEach(p => scores[p] = 0);
     }
     
-    document.querySelector('.submit').disabled = true;
-    document.querySelector('.submit').textContent = 'Saving...';
-    
+    document.getElementById('submitBtn').disabled = true;
+    document.getElementById('submitBtn').textContent = 'Saving...';
     google.script.run
       .withSuccessHandler(() => {
-        document.body.innerHTML = '<div style="text-align:center;padding:60px;"><h2 style="color:#48bb78; font-size: 28px;">✅ Game Added!</h2><p style="color:#4a5568;">You can close this window.</p></div>';
+        document.body.innerHTML = '<div style="text-align:center;padding:60px;"><h2>✅ Game Added!</h2></div>';
         setTimeout(() => google.script.host.close(), 1500);
       })
       .withFailureHandler(err => {
-        error.textContent = 'Error: ' + err.message;
-        error.style.display = 'block';
-        document.querySelector('.submit').disabled = false;
-        document.querySelector('.submit').textContent = 'Add Game';
+        alert(err.message);
+        document.getElementById('submitBtn').disabled = false;
+        document.getElementById('submitBtn').textContent = 'Add Game';
       })
       .submitGame(scores);
   }
