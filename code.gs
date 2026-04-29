@@ -484,16 +484,21 @@ function buildFanGameDialog(players) {
     .checkbox-group {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
       padding: 12px;
       background: #f7fafc;
       border-radius: 6px;
-      cursor: pointer;
+      cursor: pointer; /* Makes the hand icon appear */
       border: 1px solid #e2e8f0;
+      transition: background 0.2s;
+    }
+    .checkbox-group:hover {
+      background: #edf2f7; /* Subtle highlight on hover */
     }
     .checkbox-group label {
       margin: 0;
       cursor: pointer;
+      flex-grow: 1; /* Ensures the text takes up all available space */
       font-weight: 600;
     }
     
@@ -582,9 +587,9 @@ function buildFanGameDialog(players) {
     
     <div class="form-group">
       <label><span class="step-badge">4</span>Self-Draw & Losers</label>
-      <div class="checkbox-group" onclick="document.getElementById('selfDraw').click()">
+      <div class="checkbox-group" onclick="toggleSelfDraw()">
         <input type="checkbox" id="selfDraw" onchange="processUpdates()" onclick="event.stopPropagation()" />
-        <label for="selfDraw">Self-Draw (自摸)</label>
+        <label>Self-Draw (自摸)</label>
       </div>
     </div>
     
@@ -624,6 +629,12 @@ function buildFanGameDialog(players) {
     const query = document.getElementById('playerSearch').value.toLowerCase();
     const filtered = allPlayers.filter(p => p.toLowerCase().includes(query));
     renderSearchList(filtered);
+  }
+
+  function toggleSelfDraw() {
+    const cb = document.getElementById('selfDraw');
+    cb.checked = !cb.checked; // Flip the state
+    processUpdates(); // Update the UI/Scores
   }
 
   function renderSearchList(list) {
