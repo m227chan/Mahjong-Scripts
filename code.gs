@@ -5,6 +5,7 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu("🀄 Mahjong Club Menu")
     .addItem("Add New Game", "addNewGame")
+    .addItem("Add New Game (Fan Scoring)", "addNewGameFan")
     .addItem("Add New Player", "addNewPlayer")
     .addSeparator()
     .addItem("📊 View Dashboard", "showDashboard")
@@ -33,9 +34,6 @@ function addNewPlayer() {
 
   gamesSheet.getRange(1, lastCol + 1).setValue(playerName);
 
-  // Leave cells empty (null) instead of filling with zeros
-  // Empty cells will remain empty for non-participants
-
   const newColLetter = columnToLetter(lastCol + 1);
   gamesSheet.getRange(lastDataRow, lastCol + 1).setFormula(
     `=SUM(Games[${playerName}])`
@@ -45,59 +43,48 @@ function addNewPlayer() {
   const lbLastRow = leaderboardSheet.getLastRow();
   const newLbRow = lbLastRow + 1;
 
-  // Column A: Title (dynamic formula)
   leaderboardSheet.getRange(newLbRow, 1).setFormula(
     '=LET(rank,INDIRECT("D"&ROW()),total,COUNTA(D:D)-1,IF(rank=1,"Messiah",IF(OR(rank=2,rank=3),"Master",IF(AND(rank>=4,rank<=6),"Magician",IF(rank=total,"Moron",IF(OR(rank=total-1,rank=total-2),"Mongrel",IF(AND(rank>=total-5,rank<=total-3),"Minion","Monk")))))))'
   );
 
-  // Column B: Player Name
   leaderboardSheet.getRange(newLbRow, 2).setValue(playerName);
 
-  // Column C: Total Score
   leaderboardSheet.getRange(newLbRow, 3).setFormula(
     `=INDIRECT("'Game Scores'!" & ADDRESS(MATCH("Totals", 'Game Scores'!A:A, 0), MATCH(B${newLbRow}, 'Game Scores'!1:1, 0)))`
   );
 
-  // Column D: Total Score Rank - Update ALL rows to use dynamic range
   for (let r = 2; r <= newLbRow; r++) {
     leaderboardSheet.getRange(r, 4).setFormula(
       `=RANK(C${r}, C$2:C$${newLbRow}, FALSE)`
     );
   }
 
-  // Column E: Games Played
   leaderboardSheet.getRange(newLbRow, 5).setFormula(
     `=COUNTIF(INDEX(INDIRECT("'Game Scores'!$2:$"&(COUNTA('Game Scores'!A$2:A))), 0, MATCH(B${newLbRow}, 'Game Scores'!$1:$1, 0)), "<>")`
   );
 
-  // Column F: Games Won (shifted from E → F)
   leaderboardSheet.getRange(newLbRow, 6).setFormula(
     `=COUNTIF(INDEX(INDIRECT("'Game Scores'!$2:$"&(COUNTA('Game Scores'!A:A)-1)), 0, MATCH(B${newLbRow}, 'Game Scores'!$1:$1, 0)), ">0")`
   );
 
-  // Column G: Games Lost (shifted from F → G)
   leaderboardSheet.getRange(newLbRow, 7).setFormula(
     `=COUNTIF(INDEX(INDIRECT("'Game Scores'!$2:$"&(COUNTA('Game Scores'!A:A)-1)), 0, MATCH(B${newLbRow}, 'Game Scores'!$1:$1, 0)), "<0")`
   );
 
-  // Column H: Win / Loss Ratio (shifted from G → H)
   leaderboardSheet.getRange(newLbRow, 8).setFormula(
     `=IF(G${newLbRow}=0, 0, F${newLbRow}/G${newLbRow})`
   );
 
-  // Column I: Win / Loss Ratio Rank (shifted from H → I)
   for (let r = 2; r <= newLbRow; r++) {
     leaderboardSheet.getRange(r, 9).setFormula(
       `=RANK(H${r}, H$2:H$${newLbRow}, FALSE)`
     );
   }
 
-  // Column J: Highest Single Game Win (shifted from I → J)
   leaderboardSheet.getRange(newLbRow, 10).setFormula(
     `=MAX(INDEX(INDIRECT("'Game Scores'!$2:$"&(COUNTA('Game Scores'!A:A)-1)), 0, MATCH(B${newLbRow}, 'Game Scores'!$1:$1, 0)))`
   );
 
-  // Column K: Highest Single Game Loss (shifted from J → K)
   leaderboardSheet.getRange(newLbRow, 11).setFormula(
     `=MIN(INDEX(INDIRECT("'Game Scores'!$2:$"&(COUNTA('Game Scores'!A:A)-1)), 0, MATCH(B${newLbRow}, 'Game Scores'!$1:$1, 0)))`
   );
@@ -106,7 +93,7 @@ function addNewPlayer() {
 }
 
 // ============================================================
-// FEATURE 2: Add New Game (HTML Dialog)
+// FEATURE: Add New Game (Original - Manual Score Entry)
 // ============================================================
 function addNewGame() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -132,9 +119,7 @@ function buildGameDialog(players) {
   <style>
     * { box-sizing: border-box; font-family: Arial; }
     body { padding: 16px; margin: 0; }
-
     h3 { margin-bottom: 8px; }
-
     .instructions {
       background: #e8f0fe;
       border-left: 4px solid #1a73e8;
@@ -144,18 +129,15 @@ function buildGameDialog(players) {
       color: #333;
       line-height: 1.5;
     }
-
     .instructions strong {
       display: block;
       margin-bottom: 4px;
       color: #1a73e8;
     }
-
     .instructions ul {
       margin: 4px 0 0 0;
       padding-left: 18px;
     }
-
     .search-box {
       width: 100%;
       padding: 8px;
@@ -163,7 +145,6 @@ function buildGameDialog(players) {
       border: 1px solid #ccc;
       border-radius: 4px;
     }
-
     .player-list {
       max-height: 120px;
       overflow-y: auto;
@@ -171,36 +152,29 @@ function buildGameDialog(players) {
       border-radius: 4px;
       margin-bottom: 12px;
     }
-
     .player-item {
       padding: 6px 10px;
       cursor: pointer;
     }
-
     .player-item:hover {
       background: #f1f3f4;
     }
-
     .selected {
       background: #d2e3fc;
       font-weight: bold;
     }
-
     .scores {
       margin-top: 10px;
     }
-
     .field {
       display: flex;
       justify-content: space-between;
       margin-bottom: 8px;
     }
-
     input[type="number"] {
       width: 40%;
       padding: 6px;
     }
-
     .error {
       color: #d93025;
       font-size: 12px;
@@ -210,34 +184,28 @@ function buildGameDialog(players) {
       padding: 8px;
       border-radius: 4px;
     }
-
     .btn-row {
       display: flex;
       justify-content: flex-end;
       gap: 8px;
       margin-top: 12px;
     }
-
     button {
       padding: 7px 16px;
       border: none;
       border-radius: 4px;
       cursor: pointer;
     }
-
     .submit { background: #1a73e8; color: white; }
     .cancel { background: #eee; }
-
     button:disabled {
       background: #aaa;
       cursor: not-allowed;
     }
   </style>
 </head>
-
 <body>
   <h3>Enter Game Scores</h3>
-
   <div class="instructions">
     <strong>📋 Instructions (exactly 4 players per game):</strong>
     <ul>
@@ -247,24 +215,14 @@ function buildGameDialog(players) {
       <li>All selected players default to <strong>0</strong></li>
     </ul>
   </div>
-
-  <input 
-    class="search-box" 
-    placeholder="Search players..." 
-    oninput="filterPlayers(this.value)" 
-  />
-
+  <input class="search-box" placeholder="Search players..." oninput="filterPlayers(this.value)" />
   <div id="playerList" class="player-list"></div>
-
   <div id="scoreInputs" class="scores"></div>
-
   <div id="error" class="error"></div>
-
   <div class="btn-row">
     <button class="cancel" onclick="google.script.host.close()">Cancel</button>
     <button class="submit" onclick="submitScores()">Add Game</button>
   </div>
-
 <script>
   const allPlayers = ${JSON.stringify(players)};
   let selected = [];
@@ -272,14 +230,11 @@ function buildGameDialog(players) {
   function renderPlayers(list) {
     const container = document.getElementById("playerList");
     container.innerHTML = "";
-
     list.forEach(p => {
       const div = document.createElement("div");
       div.className = "player-item" + (selected.includes(p) ? " selected" : "");
       div.textContent = p;
-
       div.onclick = () => togglePlayer(p);
-
       container.appendChild(div);
     });
   }
@@ -293,14 +248,12 @@ function buildGameDialog(players) {
 
   function togglePlayer(player) {
     const idx = selected.indexOf(player);
-
     if (idx > -1) {
       selected.splice(idx, 1);
     } else {
       if (selected.length >= 4) return;
       selected.push(player);
     }
-
     renderPlayers(allPlayers);
     renderScoreInputs();
   }
@@ -308,16 +261,13 @@ function buildGameDialog(players) {
   function renderScoreInputs() {
     const container = document.getElementById("scoreInputs");
     container.innerHTML = "";
-
     selected.forEach(p => {
       const div = document.createElement("div");
       div.className = "field";
-
       div.innerHTML = \`
         <label>\${p}</label>
         <input type="number" id="score_\${p}" value="0" />
       \`;
-
       container.appendChild(div);
     });
   }
@@ -325,31 +275,25 @@ function buildGameDialog(players) {
   function submitScores() {
     const error = document.getElementById("error");
     error.style.display = "none";
-
     if (selected.length !== 4) {
       error.innerHTML = "⚠️ <strong>You must select exactly 4 players.</strong>";
       error.style.display = "block";
       return;
     }
-
     const scores = {};
     let sum = 0;
-
     selected.forEach(p => {
       const val = parseFloat(document.getElementById("score_" + p).value) || 0;
       scores[p] = val;
       sum += val;
     });
-
     if (Math.abs(sum) > 0.001) {
       error.innerHTML = \`⚠️ <strong>Scores must sum to 0!</strong><br>Current sum: \${sum.toFixed(1)}\`;
       error.style.display = "block";
       return;
     }
-
     document.querySelector(".submit").disabled = true;
     document.querySelector(".submit").textContent = "Saving...";
-
     google.script.run
       .withSuccessHandler(() => {
         document.body.innerHTML = "<h3>✅ Game added successfully!</h3>";
@@ -363,10 +307,8 @@ function buildGameDialog(players) {
       })
       .submitGame(scores);
   }
-
   renderPlayers(allPlayers);
 </script>
-
 </body>
 </html>
   `;
@@ -394,6 +336,548 @@ function submitGame(scores) {
   }
 }
 
+// ============================================================
+// FEATURE: Add New Game (Fan Scoring System)
+// ============================================================
+function addNewGameFan() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const gamesSheet = ss.getSheetByName("Game Scores");
+
+  const lastCol = gamesSheet.getLastColumn();
+  const headers = gamesSheet.getRange(1, 2, 1, lastCol - 1).getValues()[0];
+  const players = headers.filter(h => h !== "");
+
+  const html = buildFanGameDialog(players);
+  const htmlOutput = HtmlService.createHtmlOutput(html)
+    .setWidth(550)
+    .setHeight(750);
+
+  SpreadsheetApp.getUi().showModalDialog(htmlOutput, "Add New Game (Fan Scoring)");
+}
+
+function buildFanGameDialog(players) {
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; }
+    body { padding: 20px; margin: 0; background: #f8f9fa; }
+    
+    h3 { 
+      margin: 0 0 16px; 
+      font-size: 20px; 
+      color: #1a202c;
+      font-weight: 700;
+    }
+    
+    .card {
+      background: white;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .instructions {
+      background: #e8f4fd;
+      border-left: 4px solid #1a73e8;
+      padding: 12px;
+      margin-bottom: 16px;
+      font-size: 13px;
+      color: #2c5282;
+      line-height: 1.5;
+      border-radius: 4px;
+    }
+    
+    .form-group {
+      margin-bottom: 16px;
+    }
+    
+    .form-group label {
+      display: block;
+      font-weight: 600;
+      font-size: 13px;
+      color: #4a5568;
+      margin-bottom: 6px;
+    }
+    
+    select, input[type="number"], input[type="text"] {
+      width: 100%;
+      padding: 10px 12px;
+      border: 2px solid #e2e8f0;
+      border-radius: 6px;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+    
+    select:focus, input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    select[multiple] {
+      height: 80px;
+      background: #f7fafc;
+    }
+
+    .player-list {
+      max-height: 140px;
+      overflow-y: auto;
+      border: 2px solid #e2e8f0;
+      border-radius: 6px;
+      margin-top: 8px;
+    }
+    .player-item {
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 14px;
+      border-bottom: 1px solid #edf2f7;
+    }
+    .player-item:hover {
+      background: #edf2f7;
+    }
+    .player-item.selected {
+      background: #ebf4ff;
+      font-weight: 600;
+      color: #2b6cb0;
+    }
+    .player-item:last-child {
+      border-bottom: none;
+    }
+
+    .selected-players-container {
+      background: #f7fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 10px;
+    }
+
+    .winner-radio-item {
+      display: flex;
+      align-items: center;
+      padding: 8px;
+      background: white;
+      border-radius: 4px;
+      margin-bottom: 6px;
+      border: 1px solid #e2e8f0;
+      cursor: pointer;
+    }
+    .winner-radio-item:last-child {
+      margin-bottom: 0;
+    }
+    .winner-radio-item input[type="radio"] {
+      width: auto;
+      margin-right: 12px;
+      cursor: pointer;
+    }
+    .winner-radio-item:hover {
+      border-color: #cbd5e0;
+    }
+    
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px;
+      background: #f7fafc;
+      border-radius: 6px;
+      cursor: pointer;
+      user-select: none;
+      border: 1px solid #e2e8f0;
+    }
+    .checkbox-group:hover {
+      background: #edf2f7;
+    }
+    input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+    }
+    .checkbox-group label {
+      margin: 0;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    
+    .preview-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+    .preview-title {
+      font-size: 14px;
+      opacity: 0.9;
+      margin-bottom: 12px;
+      font-weight: 600;
+    }
+    .preview-scores {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+    .score-item {
+      background: rgba(255,255,255,0.15);
+      padding: 10px 12px;
+      border-radius: 6px;
+      backdrop-filter: blur(10px);
+    }
+    .score-player {
+      font-size: 13px;
+      opacity: 0.95;
+      margin-bottom: 4px;
+    }
+    .score-value {
+      font-size: 20px;
+      font-weight: 700;
+    }
+    .score-value.positive { color: #48bb78; }
+    .score-value.negative { color: #f56565; }
+    .score-value.zero { color: #cbd5e0; }
+    
+    .btn-row {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    button {
+      padding: 10px 24px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .submit { background: #667eea; color: white; }
+    .submit:hover { background: #5568d3; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4); }
+    .submit:disabled { background: #cbd5e0; cursor: not-allowed; transform: none; box-shadow: none; }
+    .cancel { background: #e2e8f0; color: #4a5568; }
+    .cancel:hover { background: #cbd5e0; }
+    
+    .error {
+      color: #c53030;
+      font-size: 13px;
+      margin-top: 8px;
+      padding: 10px 12px;
+      background: #fff5f5;
+      border-radius: 6px;
+      border-left: 4px solid #fc8181;
+      display: none;
+      font-weight: 500;
+    }
+    .hidden { display: none; }
+    .fan-info { font-size: 12px; color: #718096; margin-top: 6px; font-weight: 600; }
+    .step-badge {
+      background: #e2e8f0; color: #4a5568; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-right: 8px; font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <h3>🀄 Add Game (Fan Scoring)</h3>
+  
+  <div class="instructions">
+    <strong>📋 Quick Guide:</strong><br>
+    1. Select exactly 4 participants from the list.<br>
+    2. Choose the winner using the radio button next to their name.<br>
+    3. Enter the Fan won (3-13).<br>
+    4. Toggle Self-Draw or select a single loser. Everything else auto-calculates!
+  </div>
+  
+  <div class="card" id="step1Card">
+    <div class="form-group">
+      <label><span class="step-badge">1</span>Select 4 Participants (<span id="countDisplay">0</span>/4)</label>
+      <input type="text" id="playerSearch" onkeyup="filterPlayerSearch()" placeholder="Search to filter players..." />
+      <div id="playerList" class="player-list"></div>
+    </div>
+  </div>
+
+  <div class="card hidden" id="step2Card">
+    <div class="form-group">
+      <label><span class="step-badge">2</span>Select Winner</label>
+      <div id="selectedPlayersList" class="selected-players-container"></div>
+    </div>
+    
+    <div class="form-group">
+      <label><span class="step-badge">3</span>Fan Won (3-13+)</label>
+      <input type="number" id="fan" min="3" max="13" placeholder="Enter fan (3-13)" oninput="processUpdates()" />
+      <div class="fan-info" id="fanInfo"></div>
+    </div>
+    
+    <div class="form-group">
+      <label><span class="step-badge">4</span>Self-Draw & Losers</label>
+      <div class="checkbox-group" onclick="toggleSelfDraw()">
+        <input type="checkbox" id="selfDraw" onchange="processUpdates()" onclick="event.stopPropagation()" />
+        <label>Self-Draw (自摸)</label>
+      </div>
+    </div>
+    
+    <div class="form-group hidden" id="loserGroup">
+      <label>Select Loser (Discarder)</label>
+      <select id="loser" onchange="processUpdates()">
+        <option value="">Select loser...</option>
+      </select>
+    </div>
+
+    <div class="form-group hidden" id="participantsGroup">
+      <label>Other Participants (Auto-Calculated 0 points)</label>
+      <select id="participants" multiple disabled></select>
+    </div>
+    
+    <div class="form-group hidden" id="losersGroup">
+      <label>Losers (Auto-Calculated)</label>
+      <select id="losers" multiple disabled></select>
+    </div>
+  </div>
+  
+  <div class="preview-card hidden" id="previewCard">
+    <div class="preview-title">📊 Final Score Preview</div>
+    <div class="preview-scores" id="previewScores"></div>
+  </div>
+  
+  <div class="error" id="error"></div>
+  
+  <div class="btn-row">
+    <button class="cancel" onclick="google.script.host.close()">Cancel</button>
+    <button class="submit" id="submitBtn" onclick="submitFanGame()" disabled>Add Game</button>
+  </div>
+
+<script>
+  const allPlayers = ${JSON.stringify(players)};
+  let selectedParticipants = [];
+  let currentWinner = "";
+  
+  const fanToPoints = {
+    3: 8, 4: 16, 5: 24, 6: 32, 7: 48, 8: 64, 
+    9: 96, 10: 128, 11: 192, 12: 256, 13: 384
+  };
+
+  // Initialization
+  renderSearchList(allPlayers);
+
+  // Search & Filter List
+  function filterPlayerSearch() {
+    const query = document.getElementById('playerSearch').value.toLowerCase();
+    const filtered = allPlayers.filter(p => p.toLowerCase().includes(query));
+    renderSearchList(filtered);
+  }
+
+  function renderSearchList(list) {
+    const container = document.getElementById("playerList");
+    container.innerHTML = "";
+    list.forEach(p => {
+      const div = document.createElement("div");
+      div.className = "player-item" + (selectedParticipants.includes(p) ? " selected" : "");
+      div.innerHTML = p + (selectedParticipants.includes(p) ? " ✓" : "");
+      div.onclick = () => toggleParticipant(p);
+      container.appendChild(div);
+    });
+  }
+
+  function toggleParticipant(player) {
+    const idx = selectedParticipants.indexOf(player);
+    if (idx > -1) {
+      selectedParticipants.splice(idx, 1);
+      if (currentWinner === player) currentWinner = "";
+    } else {
+      if (selectedParticipants.length >= 4) return;
+      selectedParticipants.push(player);
+    }
+    
+    document.getElementById('countDisplay').textContent = selectedParticipants.length;
+    renderSearchList(allPlayers); // Re-render to show checks
+    
+    if (selectedParticipants.length === 4) {
+      document.getElementById('step2Card').classList.remove('hidden');
+      renderSelectedWinnerList();
+    } else {
+      document.getElementById('step2Card').classList.add('hidden');
+      document.getElementById('previewCard').classList.add('hidden');
+      document.getElementById('submitBtn').disabled = true;
+    }
+  }
+
+  function renderSelectedWinnerList() {
+    const container = document.getElementById("selectedPlayersList");
+    container.innerHTML = "";
+    selectedParticipants.forEach(p => {
+      const label = document.createElement("label");
+      label.className = "winner-radio-item";
+      label.innerHTML = \`
+        <input type="radio" name="winnerSelect" value="\${p}" \${currentWinner === p ? 'checked' : ''} onchange="setWinner('\${p}')" />
+        \${p}
+      \`;
+      container.appendChild(label);
+    });
+    processUpdates();
+  }
+
+  function setWinner(player) {
+    currentWinner = player;
+    
+    // Reset the loser selection if the winner changes
+    const loserSelect = document.getElementById('loser');
+    loserSelect.value = "";
+    
+    processUpdates();
+  }
+
+  function toggleSelfDraw() {
+    const cb = document.getElementById('selfDraw');
+    cb.checked = !cb.checked;
+    processUpdates();
+  }
+
+  function processUpdates() {
+    if (selectedParticipants.length !== 4) return;
+
+    const fan = parseInt(document.getElementById('fan').value) || 0;
+    const isSelfDraw = document.getElementById('selfDraw').checked;
+    
+    // Update Fan Info
+    if (fan >= 3 && fan <= 13) {
+      const points = fan === 13 ? 384 : (fanToPoints[fan] || 0);
+      document.getElementById('fanInfo').textContent = \`Base Value = \${points} points\`;
+    } else {
+      document.getElementById('fanInfo').textContent = '';
+    }
+
+    const nonWinners = selectedParticipants.filter(p => p !== currentWinner);
+
+    // Setup Dropdowns Context Based on Self-Draw
+    if (isSelfDraw && currentWinner) {
+      document.getElementById('loserGroup').classList.add('hidden');
+      document.getElementById('participantsGroup').classList.add('hidden');
+      document.getElementById('losersGroup').classList.remove('hidden');
+      
+      // Auto-populate 3 losers
+      const losersSelect = document.getElementById('losers');
+      losersSelect.innerHTML = nonWinners.map(p => \`<option value="\${p}" selected>\${p}</option>\`).join('');
+      
+    } else if (!isSelfDraw && currentWinner) {
+      document.getElementById('loserGroup').classList.remove('hidden');
+      document.getElementById('participantsGroup').classList.remove('hidden');
+      document.getElementById('losersGroup').classList.add('hidden');
+      
+      // Setup Loser Selection
+      const loserSelect = document.getElementById('loser');
+      const currentLoser = loserSelect.value;
+      
+      loserSelect.innerHTML = '<option value="">Select loser...</option>' + 
+        nonWinners.map(p => \`<option value="\${p}" \${p === currentLoser ? 'selected' : ''}>\${p}</option>\`).join('');
+      
+      // Auto-populate 2 other participants if loser is selected
+      const participantsSelect = document.getElementById('participants');
+      if (loserSelect.value) {
+        const others = nonWinners.filter(p => p !== loserSelect.value);
+        participantsSelect.innerHTML = others.map(p => \`<option value="\${p}" selected>\${p}</option>\`).join('');
+      } else {
+        participantsSelect.innerHTML = "";
+      }
+    }
+
+    renderPreview();
+  }
+  
+  function renderPreview() {
+    const fan = parseInt(document.getElementById('fan').value) || 0;
+    const isSelfDraw = document.getElementById('selfDraw').checked;
+    const loser = document.getElementById('loser').value;
+    const btn = document.getElementById('submitBtn');
+    
+    btn.disabled = true; // Default disable
+
+    if (!currentWinner || fan < 3) {
+      document.getElementById('previewCard').classList.add('hidden');
+      return;
+    }
+    
+    // Validation check before rendering final points
+    if (!isSelfDraw && !loser) {
+      document.getElementById('previewCard').classList.add('hidden');
+      return;
+    }
+
+    document.getElementById('previewCard').classList.remove('hidden');
+    
+    const basePoints = fan >= 13 ? 384 : (fanToPoints[fan] || 0);
+    const scores = {};
+    const nonWinners = selectedParticipants.filter(p => p !== currentWinner);
+    
+    if (isSelfDraw) {
+      scores[currentWinner] = basePoints * 3;
+      nonWinners.forEach(l => scores[l] = -basePoints);
+      btn.disabled = false;
+    } else {
+      scores[currentWinner] = basePoints * 2;
+      scores[loser] = -basePoints * 2;
+      const others = nonWinners.filter(p => p !== loser);
+      others.forEach(p => scores[p] = 0);
+      btn.disabled = false;
+    }
+    
+    const html = Object.entries(scores).map(([player, score]) => {
+      const sign = score > 0 ? '+' : '';
+      const colorClass = score > 0 ? 'positive' : (score < 0 ? 'negative' : 'zero');
+      const badge = player === currentWinner ? '👑 ' : (score < 0 ? '💥 ' : '👁️ ');
+      return \`
+        <div class="score-item">
+          <div class="score-player">\${badge}\${player}</div>
+          <div class="score-value \${colorClass}">\${sign}\${score}</div>
+        </div>
+      \`;
+    }).join('');
+    
+    document.getElementById('previewScores').innerHTML = html;
+  }
+  
+  function submitFanGame() {
+    const error = document.getElementById('error');
+    error.style.display = 'none';
+    
+    const fan = parseInt(document.getElementById('fan').value) || 0;
+    const isSelfDraw = document.getElementById('selfDraw').checked;
+    const loser = document.getElementById('loser').value;
+    
+    const basePoints = fan >= 13 ? 384 : (fanToPoints[fan] || 0);
+    const scores = {};
+    const nonWinners = selectedParticipants.filter(p => p !== currentWinner);
+    
+    if (isSelfDraw) {
+      scores[currentWinner] = basePoints * 3;
+      nonWinners.forEach(l => scores[l] = -basePoints);
+    } else {
+      scores[currentWinner] = basePoints * 2;
+      scores[loser] = -basePoints * 2;
+      const others = nonWinners.filter(p => p !== loser);
+      others.forEach(p => scores[p] = 0);
+    }
+    
+    document.querySelector('.submit').disabled = true;
+    document.querySelector('.submit').textContent = 'Saving...';
+    
+    google.script.run
+      .withSuccessHandler(() => {
+        document.body.innerHTML = '<div style="text-align:center;padding:60px;"><h2 style="color:#48bb78; font-size: 28px;">✅ Game Added!</h2><p style="color:#4a5568;">You can close this window.</p></div>';
+        setTimeout(() => google.script.host.close(), 1500);
+      })
+      .withFailureHandler(err => {
+        error.textContent = 'Error: ' + err.message;
+        error.style.display = 'block';
+        document.querySelector('.submit').disabled = false;
+        document.querySelector('.submit').textContent = 'Add Game';
+      })
+      .submitGame(scores);
+  }
+</script>
+</body>
+</html>
+  `;
+}
 
 // ============================================================
 // HELPER: Convert column number to letter
@@ -408,10 +892,13 @@ function columnToLetter(column) {
   return letter;
 }
 
+// ============================================================
+// DASHBOARD FUNCTIONS
+// ============================================================
 function showDashboard() {
   const html = HtmlService.createHtmlOutputFromFile("dashboard")
-    .setWidth(1000)
-    .setHeight(700);
+    .setWidth(1200)
+    .setHeight(800);
   SpreadsheetApp.getUi().showModalDialog(html, "Mahjong Dashboard");
 }
 
@@ -420,13 +907,12 @@ function getGameData() {
   const sheet = ss.getSheetByName("Game Scores");
   const data = sheet.getDataRange().getValues();
 
-  const headers = data[0].slice(1).filter(h => h !== ""); // player names, no empty
-  const rows = data.slice(1, -1); // exclude header and totals row
+  const headers = data[0].slice(1).filter(h => h !== "");
+  const rows = data.slice(1, -1);
 
   let cumulative = headers.map(() => 0);
 
   const result = rows.map((row, i) => {
-    // Convert time to a plain string here in Apps Script
     const rawTime = row[0];
     let time;
     if (rawTime instanceof Date) {
@@ -451,73 +937,17 @@ function getGameData() {
   return { players: headers, data: result };
 }
 
+// ============================================================
+// NETWORK GRAPH FUNCTIONS
+// ============================================================
 function showNetwork() {
   const html = HtmlService.createHtmlOutputFromFile("network")
-    .setWidth(1000)
-    .setHeight(650);
+    .setWidth(1200)
+    .setHeight(800);
 
   SpreadsheetApp.getUi().showModalDialog(html, "Player Network");
 }
 
-function getPlayerNetwork() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName("Game Scores");
-  const data = sheet.getDataRange().getValues();
-
-  const players = data[0].slice(1).filter(p => p !== "");
-  const rows = data.slice(1, -1);
-
-  const cutoff = new Date(2026, 3, 25); // April = month 3 (0-indexed)
-
-  const pairCounts = {};
-
-  rows.forEach(row => {
-    const rawDate = row[0];
-
-    let gameDate;
-    if (rawDate instanceof Date) {
-      gameDate = rawDate;
-    } else {
-      // parse "dd/MM/yyyy HH:mm:ss"
-      const parts = rawDate.split(" ");
-      const [day, month, year] = parts[0].split("/").map(Number);
-      gameDate = new Date(year, month - 1, day);
-    }
-
-    // 🔥 FILTER: only include games on/after cutoff
-    if (gameDate < cutoff) return;
-
-    const activePlayers = [];
-
-    players.forEach((p, i) => {
-      if (row[i + 1] !== "" && row[i + 1] !== null) {
-        activePlayers.push(p);
-      }
-    });
-
-    // count all player pairs
-    for (let i = 0; i < activePlayers.length; i++) {
-      for (let j = i + 1; j < activePlayers.length; j++) {
-        const a = activePlayers[i];
-        const b = activePlayers[j];
-        const key = [a, b].sort().join("|");
-
-        pairCounts[key] = (pairCounts[key] || 0) + 1;
-      }
-    }
-  });
-
-  const edges = Object.entries(pairCounts).map(([key, count]) => {
-    const [from, to] = key.split("|");
-    return { from, to, count };
-  });
-
-  return { players, edges };
-}
-
-/**
- * Retrieves game data, filtering out summary rows and sanitizing for the frontend.
- */
 function getRawGameData() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName("Game Scores");
@@ -527,18 +957,16 @@ function getRawGameData() {
   const players = data[0].slice(1).filter(h => h !== "");
   
   const rows = data.filter((row, index) => {
-    if (index === 0) return false; // Skip header
+    if (index === 0) return false;
     
     const firstCell = String(row[0]).trim();
     
-    // Kill the summary/footer row and empty rows
     if (firstCell.toLowerCase() === "totals" || firstCell === "" || firstCell.toLowerCase() === "total") {
       return false;
     }
     return true;
   });
 
-  // Convert Date objects to ISO strings so they don't break the JSON transfer
   const sanitizedRows = rows.map(row => {
     return row.map(cell => {
       if (cell instanceof Date) return cell.toISOString();
@@ -547,12 +975,4 @@ function getRawGameData() {
   });
 
   return { players, rows: sanitizedRows };
-}
-
-// Ensure showNetwork points to the correct HTML file
-function showNetwork() {
-  const html = HtmlService.createHtmlOutputFromFile("network")
-    .setWidth(1000)
-    .setHeight(750); // Increased height for new filters
-  SpreadsheetApp.getUi().showModalDialog(html, "🌐 Player Network");
 }
