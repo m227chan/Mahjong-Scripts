@@ -44,7 +44,7 @@ function addNewPlayer() {
   const newLbRow = lbLastRow + 1;
 
   leaderboardSheet.getRange(newLbRow, 1).setFormula(
-    '=LET(rank,INDIRECT("D"&ROW()),total,COUNTA(D$2:D$999),IF(rank=1,"Messiah",IF(AND(rank>=2,rank<=3),"Master",IF(AND(rank>=4,rank<=6),"Musketeer",IF(AND(rank>=7,rank<=10),"Magician",IF(rank=total,"Moron",IF(AND(rank>=total-2,rank<=total-1),"Mongrel",IF(AND(rank>=total-5,rank<=total-3),"Minion",IF(AND(rank>=total-9,rank<=total-6),"Mortal","Monk")))))))))'
+    '=LET(rank,INDIRECT("D"&ROW()),total,COUNTA(D$2:D$999),IF(rank=1,"Messiah",IF(AND(rank>=2,rank<=3),"Master",IF(AND(rank>=4,rank<=6),"Musketeer",IF(AND(rank>=7,rank<=10),"Marshal",IF(rank=total,"Moron",IF(AND(rank>=total-2,rank<=total-1),"Mongrel",IF(AND(rank>=total-5,rank<=total-3),"Minion",IF(AND(rank>=total-9,rank<=total-6),"Mortal","Monk")))))))))'
   );
 
   leaderboardSheet.getRange(newLbRow, 2).setValue(playerName);
