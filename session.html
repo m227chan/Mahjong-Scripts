@@ -1,0 +1,1707 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    /* ── Reset & Base ── */
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    body { background: #f0f2f7; font-size: 13px; color: #1a202c; overflow-x: hidden; }
+
+    /* ── CSS Variables ── */
+    :root {
+      --purple: #667eea;
+      --purple-dark: #5568d3;
+      --green: #48bb78;
+      --green-dark: #38a169;
+      --red: #fc8181;
+      --red-dark: #e53e3e;
+      --gold: #f6ad55;
+      --gray: #718096;
+      --border: #e2e8f0;
+      --white: #ffffff;
+      --card-bg: #ffffff;
+      --radius: 10px;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: linear-gradient(135deg, var(--purple) 0%, #764ba2 100%);
+      color: white;
+      padding: 12px 14px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    .header h1 { font-size: 15px; font-weight: 800; letter-spacing: 0.3px; }
+    .header-sub { font-size: 10px; opacity: 0.8; margin-top: 1px; }
+    .header-actions { display: flex; gap: 6px; }
+    .btn-icon {
+      background: rgba(255,255,255,0.2);
+      border: none; border-radius: 6px;
+      color: white; padding: 5px 8px;
+      font-size: 11px; font-weight: 600;
+      cursor: pointer; transition: background 0.15s;
+      white-space: nowrap;
+    }
+    .btn-icon:hover { background: rgba(255,255,255,0.35); }
+    .btn-icon.danger { background: rgba(252,129,129,0.3); }
+    .btn-icon.danger:hover { background: rgba(252,129,129,0.5); }
+
+    /* ── Pages ── */
+    .page { display: none; padding: 12px; }
+    .page.active { display: block; }
+
+    /* ── Setup Page ── */
+    .setup-card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+    .setup-card h3 {
+      font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.6px;
+      color: var(--gray); margin-bottom: 10px;
+    }
+    .table-count-row {
+      display: flex; gap: 8px;
+    }
+    .table-count-btn {
+      flex: 1; padding: 10px 6px;
+      border: 2px solid var(--border);
+      border-radius: 8px; background: white;
+      font-size: 18px; cursor: pointer;
+      transition: all 0.15s; text-align: center;
+    }
+    .table-count-btn.selected {
+      border-color: var(--purple);
+      background: #ebf4ff;
+    }
+    .table-count-btn span { display: block; font-size: 10px; font-weight: 600; color: var(--gray); margin-top: 2px; }
+
+    /* Player grid for setup */
+    .player-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      max-height: 340px;
+      overflow-y: auto;
+    }
+    .player-toggle {
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      padding: 7px 4px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+      background: white;
+    }
+    .player-toggle .icon { font-size: 20px; display: block; }
+    .player-toggle .name { font-size: 10px; font-weight: 600; color: #4a5568; margin-top: 3px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .player-toggle.selected {
+      border-color: var(--purple);
+      background: #ebf4ff;
+    }
+    .player-toggle.selected .name { color: var(--purple-dark); }
+
+    .setup-footer {
+      display: flex; gap: 8px; align-items: center;
+    }
+    .selected-count {
+      font-size: 12px; color: var(--gray); font-weight: 600; flex: 1;
+    }
+    .btn-primary {
+      background: var(--purple); color: white;
+      border: none; border-radius: 8px;
+      padding: 10px 18px; font-size: 13px;
+      font-weight: 700; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-primary:hover:not(:disabled) { background: var(--purple-dark); }
+    .btn-primary:disabled { background: #cbd5e0; cursor: not-allowed; }
+    .btn-secondary {
+      background: #e2e8f0; color: #4a5568;
+      border: none; border-radius: 8px;
+      padding: 10px 14px; font-size: 12px;
+      font-weight: 700; cursor: pointer;
+    }
+    .btn-secondary:hover { background: #cbd5e0; }
+
+    /* ── Session Page layout ── */
+    #sessionPage {
+      display: none;
+      flex-direction: column;
+      height: calc(100vh - 48px);
+      padding: 0;
+      overflow: hidden;
+    }
+    #sessionPage.active {
+      display: flex;
+    }
+    .tables-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 12px 0;
+      order: 2;
+    }
+    .sideline-section {
+      flex-shrink: 0;
+      padding: 10px;
+      border-bottom: 2px solid var(--border);
+      border-top: none;
+      background: var(--white);
+      border-radius: 0;
+      order: 1;
+    }
+
+    /* ── Session Page ── */
+    /* Tables section */
+    .section-label {
+      font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.6px;
+      color: var(--gray); margin-bottom: 8px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .section-label .badge {
+      background: var(--purple);
+      color: white; border-radius: 8px;
+      padding: 1px 6px; font-size: 9px;
+    }
+
+    .tables-container { margin-bottom: 10px; }
+
+    .table-card {
+      background: var(--card-bg);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 14px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      overflow: visible;
+      position: relative;
+    }
+    .table-card.valid {
+      border-color: var(--green);
+      box-shadow: 0 0 0 1px rgba(72,187,120,0.2);
+    }
+    .table-card.drag-over {
+      border-color: var(--purple);
+      box-shadow: 0 0 0 3px rgba(102,126,234,0.2);
+      background: #f0f4ff;
+    }
+
+    .table-header {
+      display: flex; align-items: center;
+      padding: 8px 10px 6px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .table-name {
+      font-size: 12px; font-weight: 700;
+      color: #2d3748; flex: 1;
+    }
+    .table-status {
+      font-size: 10px; font-weight: 600;
+      padding: 2px 7px; border-radius: 8px;
+    }
+    .table-status.valid { background: #c6f6d5; color: #276749; }
+    .table-status.waiting { background: #e2e8f0; color: var(--gray); }
+
+    .table-seats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      padding: 6px 8px;
+      min-height: 64px;
+    }
+
+    /* Seat slots */
+    .seat-slot {
+      border: 1.5px dashed #cbd5e0;
+      border-radius: 7px;
+      min-height: 54px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+      position: relative;
+    }
+    .seat-slot.occupied { border-style: solid; border-color: transparent; background: transparent; }
+    .seat-slot.drag-target {
+      border-color: var(--purple);
+      background: #f0f4ff;
+    }
+    .empty-seat-hint { font-size: 10px; color: #cbd5e0; font-weight: 600; }
+
+    /* Table actions */
+    .table-actions {
+      padding: 6px 8px 8px;
+      display: none;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+    .table-card.valid .table-actions { display: flex; }
+
+    .btn-draw {
+      flex: 1;
+      background: #e2e8f0; color: #4a5568;
+      border: none; border-radius: 6px;
+      padding: 7px 8px; font-size: 11px;
+      font-weight: 700; cursor: pointer;
+      transition: all 0.15s;
+      min-width: 60px;
+    }
+    .btn-draw:hover { background: #bee3f8; color: #2b6cb0; }
+
+    /* Winner selection panel (inline) */
+    .win-panel {
+      padding: 8px;
+      background: #fffbeb;
+      border-top: 1px solid #faf089;
+      display: none;
+    }
+    .win-panel.active { display: block; }
+    .win-panel-title {
+      font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.5px;
+      color: #b7791f; margin-bottom: 6px;
+    }
+    .win-type-row {
+      display: flex; gap: 5px; margin-bottom: 8px;
+    }
+    .win-type-btn {
+      flex: 1; padding: 6px 4px;
+      border: 2px solid var(--border);
+      border-radius: 6px; background: white;
+      font-size: 11px; font-weight: 700;
+      cursor: pointer; transition: all 0.15s;
+      text-align: center;
+    }
+    .win-type-btn.selected { border-color: var(--gold); background: #fffbeb; }
+
+    .loser-row {
+      margin-bottom: 8px; display: none;
+    }
+    .loser-row.visible { display: block; }
+    .loser-label { font-size: 10px; font-weight: 600; color: var(--gray); margin-bottom: 4px; }
+    .loser-chips { display: flex; gap: 4px; flex-wrap: wrap; }
+    .loser-chip {
+      padding: 4px 8px;
+      border: 1.5px solid var(--border);
+      border-radius: 12px; background: white;
+      font-size: 11px; font-weight: 600;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .loser-chip.selected { border-color: var(--red); background: #fff5f5; color: var(--red-dark); }
+
+    .fan-row { margin-bottom: 8px; }
+    .fan-label { font-size: 10px; font-weight: 600; color: var(--gray); margin-bottom: 4px; display: flex; justify-content: space-between; }
+    .fan-chips { display: flex; gap: 3px; flex-wrap: wrap; }
+    .fan-chip {
+      padding: 4px 7px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px; background: white;
+      font-size: 11px; font-weight: 700;
+      cursor: pointer; transition: all 0.15s;
+      color: #4a5568;
+    }
+    .fan-chip.selected { border-color: var(--purple); background: #ebf4ff; color: var(--purple-dark); }
+
+    .score-preview {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      border-radius: 8px;
+      padding: 8px;
+      margin-bottom: 8px;
+      display: none;
+    }
+    .score-preview.visible { display: block; }
+    .score-preview-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 4px;
+    }
+    .score-preview-item {
+      background: rgba(255,255,255,0.15);
+      border-radius: 5px; padding: 4px 6px;
+    }
+    .score-preview-name { font-size: 10px; color: rgba(255,255,255,0.8); }
+    .score-preview-val { font-size: 13px; font-weight: 800; }
+    .score-pos { color: #68d391; }
+    .score-neg { color: #fc8181; }
+    .score-zero { color: rgba(255,255,255,0.5); }
+
+    .win-panel-actions { display: flex; gap: 5px; }
+    .btn-submit-game {
+      flex: 1; background: var(--purple); color: white;
+      border: none; border-radius: 6px;
+      padding: 8px; font-size: 12px;
+      font-weight: 700; cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-submit-game:hover:not(:disabled) { background: var(--purple-dark); }
+    .btn-submit-game:disabled { background: #cbd5e0; cursor: not-allowed; }
+    .btn-cancel-win {
+      background: #e2e8f0; color: #4a5568;
+      border: none; border-radius: 6px;
+      padding: 8px 10px; font-size: 12px;
+      font-weight: 700; cursor: pointer;
+    }
+    .btn-cancel-win:hover { background: #cbd5e0; }
+
+    /* Flash overlay */
+    .score-flash {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(72,187,120,0.92);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      z-index: 999; color: white;
+      animation: flashIn 0.2s ease;
+      pointer-events: none;
+    }
+    @keyframes flashIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+    .flash-title { font-size: 22px; font-weight: 800; margin-bottom: 8px; }
+    .flash-scores { display: flex; flex-direction: column; gap: 4px; width: 80%; }
+    .flash-row { display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.2); border-radius: 6px; padding: 5px 10px; font-weight: 700; font-size: 14px; }
+    .flash-score-val.pos { color: #68d391; }
+    .flash-score-val.neg { color: #fc8181; }
+
+    /* ── Sideline ── */
+    .sideline-section {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      padding: 10px;
+    }
+    .sideline-area {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      min-height: 50px;
+      padding: 6px;
+      border: 2px dashed #e2e8f0;
+      border-radius: 8px;
+      transition: all 0.15s;
+      max-height: 160px;
+      overflow-y: auto;
+    }
+    .sideline-area.drag-over {
+      border-color: var(--purple);
+      background: #f0f4ff;
+    }
+    .sideline-empty {
+      font-size: 11px; color: #cbd5e0;
+      font-weight: 600; padding: 8px; width: 100%;
+      text-align: center;
+    }
+
+    /* ── Player Chip (draggable) ── */
+    .player-chip {
+      display: flex; flex-direction: column;
+      align-items: center;
+      width: 52px;
+      cursor: grab;
+      user-select: none;
+      transition: transform 0.1s, opacity 0.1s;
+      position: relative;
+    }
+    .player-chip:active { cursor: grabbing; }
+    .player-chip.dragging { opacity: 0.4; transform: scale(0.9); }
+    .player-chip.winner-candidate {
+      outline: 2px solid var(--gold);
+      outline-offset: 2px;
+      border-radius: 6px;
+    }
+
+    .chip-icon {
+      width: 40px; height: 40px;
+      background: linear-gradient(135deg, #ebf4ff, #e9d8fd);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      border: 2px solid var(--border);
+      transition: border-color 0.15s;
+    }
+    .player-chip:hover .chip-icon { border-color: var(--purple); }
+    .chip-name {
+      font-size: 9px; font-weight: 700;
+      text-align: center; color: #4a5568;
+      margin-top: 3px;
+      max-width: 52px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+
+    /* Seat chip is full-width of seat slot */
+    .seat-slot .player-chip { width: 100%; padding: 4px 2px; }
+    .seat-slot .chip-icon { width: 32px; height: 32px; font-size: 16px; }
+    .seat-slot .chip-name { font-size: 9px; }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+      background: #2d3748; color: white;
+      border-radius: 20px; padding: 8px 16px;
+      font-size: 12px; font-weight: 600;
+      z-index: 1000; display: none;
+      animation: toastIn 0.2s ease;
+    }
+    @keyframes toastIn { from { opacity: 0; transform: translateX(-50%) translateY(8px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+    
+    /* ── Loading ── */
+    .loading-screen {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      height: 200px; color: var(--gray);
+    }
+    .spinner {
+      width: 32px; height: 32px;
+      border: 3px solid var(--border);
+      border-top-color: var(--purple);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 10px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Misc ── */
+    .divider { height: 1px; background: var(--border); margin: 10px 0; }
+    .error-msg { background: #fff5f5; color: #c53030; border-radius: 6px; padding: 8px 10px; font-size: 11px; margin-top: 6px; display: none; }
+
+    .menu-item {
+      display: block; width: 100%;
+      padding: 10px 14px; border: none;
+      background: white; text-align: left;
+      font-size: 13px; font-weight: 600;
+      cursor: pointer; color: #2d3748;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .menu-item:last-child { border-bottom: none; }
+    .menu-item:hover { background: #f7fafc; }
+    .danger-item { color: #e53e3e; }
+    .danger-item:hover { background: #fff5f5; }
+  
+    .info-section {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .info-icon {
+      font-size: 20px;
+      width: 32px;
+      height: 32px;
+      background: #ebf4ff;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .info-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #2d3748;
+      margin-bottom: 3px;
+    }
+    .info-body {
+      font-size: 12px;
+      color: #718096;
+      line-height: 1.5;
+    }
+
+    .chip-remove-btn {
+      position: absolute; top: -3px; left: -3px;
+      width: 14px; height: 14px;
+      background: rgba(0,0,0,0.25);
+      border-radius: 50%;
+      border: none; cursor: pointer;
+      font-size: 10px;
+      display: none;
+      align-items: center; justify-content: center;
+      font-weight: 700; color: white;
+      z-index: 10;
+      line-height: 1;
+      opacity: 0;
+      transition: opacity 0.15s, background 0.15s;
+    }
+    .chip-win-btn {
+      position: absolute; top: -4px; right: -4px;
+      width: 16px; height: 16px;
+      background: var(--gold);
+      border-radius: 50%;
+      border: none; cursor: pointer;
+      font-size: 9px; display: none;
+      align-items: center; justify-content: center;
+      font-weight: 700; color: white;
+      z-index: 10;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .table-card.valid .player-chip .chip-remove-btn { display: flex; }
+    .table-card.valid .player-chip .chip-win-btn { display: flex; }
+    .table-card.valid .player-chip:hover .chip-remove-btn { opacity: 1; }
+    .table-card.valid .player-chip:hover .chip-win-btn { opacity: 1; }
+    .chip-remove-btn:hover { background: rgba(0,0,0,0.5) !important; }
+
+    .chip-swap-btn {
+      position: absolute; bottom: -4px; right: -4px;
+      width: 16px; height: 16px;
+      background: #667eea;
+      border-radius: 50%;
+      border: none; cursor: pointer;
+      font-size: 9px; display: none;
+      align-items: center; justify-content: center;
+      font-weight: 700; color: white;
+      z-index: 10;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .table-card.valid .player-chip .chip-swap-btn { display: flex; }
+    .table-card.valid .player-chip:hover .chip-swap-btn { opacity: 1; }
+
+    .clear-table-btn {
+      position: absolute;
+
+      /* fully outside top-left corner */
+      top: -10px;
+      left: -10px;
+
+      width: 22px;
+      height: 22px;
+
+      border: none;
+      border-radius: 50%;
+
+      background: #e2e8f0;
+      color: #718096;
+
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      cursor: pointer;
+
+      z-index: 100;
+
+      opacity: 0;
+      transition:
+        opacity 0.15s,
+        background 0.15s,
+        transform 0.15s;
+
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+
+    .table-card:hover .clear-table-btn {
+      opacity: 1;
+    }
+
+    .clear-table-btn:hover {
+      background: #fed7d7;
+      color: #c53030;
+      transform: scale(1.08);
+    }
+
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div>
+    <div style="display:flex;align-items:center;gap:6px;font-size:15px;font-weight:800;">🀄 Session</div>
+    <div class="header-sub" id="headerSub">Loading...</div>
+  </div>
+  <div class="header-actions">
+    <button class="btn-icon" onclick="toggleInfo()" id="btnInfo">?</button>
+    <button class="btn-icon" onclick="toggleHeaderMenu()" id="btnMenu" style="display:none">⋯</button>
+    <div id="headerMenu" style="
+      display:none; position:absolute; top:44px; right:10px;
+      background:white; border-radius:10px; box-shadow:0 4px 16px rgba(0,0,0,0.15);
+      overflow:hidden; z-index:200; min-width:160px;
+    ">
+      <button onclick="showSetup();toggleHeaderMenu()" class="menu-item">⚙️ Edit Session</button>
+      <button onclick="clearAllTables();toggleHeaderMenu()" class="menu-item">⬇️ Clear All Tables</button>
+      <button onclick="confirmClearSession();toggleHeaderMenu()" class="menu-item danger-item">🗑 Reset Session</button>
+    </div>
+  </div>
+</div>
+
+<!-- Loading -->
+<div id="loadingScreen" class="page active">
+  <div class="loading-screen"><div class="spinner"></div><span>Loading session...</span></div>
+</div>
+
+<!-- Setup Page -->
+<div id="setupPage" class="page">
+  <div class="setup-card">
+    <h3>📋 Number of Tables</h3>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <input type="number" id="tableCountInput" min="1" max="99" value="1"
+        style="width:70px; padding:8px 10px; border:2px solid #e2e8f0; border-radius:8px; font-size:18px; font-weight:700; text-align:center;"
+        oninput="selectTableCount(parseInt(this.value)||1)" />
+      <span style="font-size:13px; color:#718096; font-weight:600;">tables</span>
+    </div>
+  </div>
+
+  <div class="setup-card">
+    <h3>👥 Select Participating Players</h3>
+    <input type="text" id="playerSearch" placeholder="Search players…"
+      style="width:100%; padding:8px 10px; margin-bottom:8px; border:2px solid #e2e8f0; border-radius:8px; font-size:13px;"
+      oninput="filterSetupPlayers()" />
+    <div class="player-grid" id="setupPlayerGrid"></div>
+  </div>
+
+  <div class="setup-card" style="padding:12px 14px;">
+    <div class="setup-footer">
+      <span class="selected-count" id="setupCount">0 players selected</span>
+      <button class="btn-secondary" onclick="selectAllPlayers()">All</button>
+      <button class="btn-primary" id="startSessionBtn" onclick="startSession()" disabled>Start Session</button>
+    </div>
+    <div class="error-msg" id="setupError"></div>
+  </div>
+</div>
+
+<!-- Session Page -->
+<div id="sessionPage" class="page">
+  <div class="tables-scroll">
+    <div style="padding-bottom:8px;">
+      <input type="text" id="tableSearch" placeholder="🔍 Search table or player…"
+        style="width:100%; padding:8px 10px; border:2px solid #e2e8f0; border-radius:8px; font-size:12px; background:white;"
+        oninput="filterTables()" />
+    </div>
+    <div class="tables-container" id="tablesContainer"></div>
+  </div>
+
+  <!-- Sideline -->
+  <div class="sideline-section">
+    <div class="section-label" onclick="toggleSideline()" style="cursor:pointer; user-select:none;">
+      🪑 Sideline
+      <span class="badge" id="sidelineCount">0</span>
+      <span id="sidelineChevron" style="margin-left:auto; font-size:10px; color:var(--gray);">▲</span>
+    </div>
+    <div id="sidelineBody">
+      <div class="sideline-area" id="sidelineArea"
+        ondragover="onDragOver(event, 'sideline')"
+        ondragleave="onDragLeave(event, 'sideline')"
+        ondrop="onDrop(event, 'sideline', null)">
+        <div class="sideline-empty" id="sidelineEmpty">All players at tables!</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════
+let allPlayers = [];       // [{name, icon}]
+let session = {
+  active: false,
+  tableCount: 1,
+  participants: [],        // player names
+  tables: {},              // { "1": ["p1","p2","p3","p4"], "2": [...] }
+  sideline: []             // player names
+};
+
+// Win flow state
+let winState = {
+  tableId: null,
+  winner: null,
+  winType: null,           // 'self' | 'discard'
+  loser: null,
+  fan: null
+};
+
+const FAN_POINTS = {3:8,4:16,5:24,6:32,7:48,8:64,9:96,10:128,11:192,12:256,13:384};
+
+// Drag state
+let dragPlayer = null;
+let dragSource = null; // 'sideline' | tableId string
+
+// ══════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════
+window.onload = () => {
+  google.script.run
+    .withSuccessHandler(onInitData)
+    .withFailureHandler(err => showToast('Error: ' + err.message))
+    .getSessionInitData();
+};
+
+function onInitData(data) {
+  allPlayers = data.players; // [{name, icon}]
+  const s = data.session;
+
+  if (s && s.active) {
+    session = s;
+    showSessionPage();
+  } else {
+    showSetupPage();
+  }
+}
+
+function clearAllTables() {
+  closeAllWinPanels();
+  for (let i = 1; i <= session.tableCount; i++) {
+    const tableId = String(i);
+    const players = session.tables[tableId] || [];
+    players.forEach(p => {
+      if (!session.sideline.includes(p)) session.sideline.push(p);
+    });
+    session.tables[tableId] = [];
+  }
+  persistAndRender();
+  showToast('All tables cleared.');
+}
+
+// ══════════════════════════════════════════════════════════
+// SETUP PAGE
+// ══════════════════════════════════════════════════════════
+function showSetupPage() {
+  hidePage();
+  document.getElementById('btnMenu').style.display = 'none';
+  document.getElementById('setupPage').classList.add('active');
+  document.getElementById('headerSub').textContent = session.active ? 'Editing session' : 'New session';
+
+  // Restore existing selections if editing
+  const existingParticipants = session.participants || [];
+  const existingTableCount = session.tableCount || 1;
+
+  // Table count buttons
+  selectTableCount(existingTableCount);
+
+  // Player grid
+  const grid = document.getElementById('setupPlayerGrid');
+  grid.innerHTML = '';
+  const sortedPlayers = [...allPlayers].sort((a, b) => a.name.localeCompare(b.name));
+  sortedPlayers.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'player-toggle' + (existingParticipants.includes(p.name) ? ' selected' : '');
+    div.innerHTML = `<span class="icon">${p.icon || '👤'}</span><span class="name" title="${p.name}">${p.name}</span>`;
+    div.onclick = () => togglePlayerSetup(div, p.name);
+    grid.appendChild(div);
+  });
+
+  updateSetupCount();
+}
+
+function togglePlayerSetup(el, name) {
+  el.classList.toggle('selected');
+  updateSetupCount();
+}
+
+function updateSetupCount() {
+  const selected = document.querySelectorAll('#setupPlayerGrid .player-toggle.selected');
+  const n = selected.length;
+  document.getElementById('setupCount').textContent = n + ' player' + (n !== 1 ? 's' : '') + ' selected';
+  document.getElementById('startSessionBtn').disabled = n < 4 || session.tableCount < 1;
+}
+
+function selectTableCount(n) {
+  if (!n || n < 1) n = 1;
+  session.tableCount = n;
+  const input = document.getElementById('tableCountInput');
+  if (input && parseInt(input.value) !== n) input.value = n;
+  updateSetupCount();
+}
+
+function selectAllPlayers() {
+  document.querySelectorAll('#setupPlayerGrid .player-toggle').forEach(el => el.classList.add('selected'));
+  updateSetupCount();
+}
+
+function clearAllPlayers() {
+  document.querySelectorAll('#setupPlayerGrid .player-toggle').forEach(el => el.classList.remove('selected'));
+  updateSetupCount();
+}
+
+function startSession() {
+  const selectedEls = document.querySelectorAll('#setupPlayerGrid .player-toggle.selected');
+  const participants = [...selectedEls].map(el => el.querySelector('.name').title);
+
+  if (participants.length < 4) { showError('setupError', 'Select at least 4 players.'); return; }
+  if (!session.tableCount) { showError('setupError', 'Select number of tables.'); return; }
+
+  // If editing an existing session, preserve table assignments for players still participating
+  const prevTables = session.active ? session.tables : {};
+  const newTables = {};
+  for (let i = 1; i <= session.tableCount; i++) {
+    const key = String(i);
+    const prev = prevTables[key] || [];
+    // Keep only players still participating
+    newTables[key] = prev.filter(p => participants.includes(p));
+  }
+
+  // Compute sideline = participants not assigned to any table
+  const assigned = Object.values(newTables).flat();
+  const sideline = participants.filter(p => !assigned.includes(p));
+
+  session = {
+    active: true,
+    tableCount: session.tableCount,
+    participants,
+    tables: newTables,
+    sideline
+  };
+
+  // Mark participating in sheet & persist
+  const btn = document.getElementById('startSessionBtn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+
+  google.script.run
+    .withSuccessHandler(() => { btn.disabled = false; btn.textContent = 'Start Session'; showSessionPage(); })
+    .withFailureHandler(err => { btn.disabled = false; btn.textContent = 'Start Session'; showError('setupError', err.message); })
+    .saveSession(session);
+}
+
+function showSetup() {
+  showSetupPage();
+}
+
+function filterSetupPlayers() {
+  const q = document.getElementById('playerSearch').value.toLowerCase();
+  document.querySelectorAll('#setupPlayerGrid .player-toggle').forEach(el => {
+    const name = el.querySelector('.name').textContent.toLowerCase();
+    el.style.display = name.includes(q) ? '' : 'none';
+  });
+}
+
+// ══════════════════════════════════════════════════════════
+// SESSION PAGE
+// ══════════════════════════════════════════════════════════
+function showSessionPage() {
+  hidePage();
+  document.getElementById('btnMenu').style.display = '';
+  document.getElementById('sessionPage').classList.add('active');
+  document.getElementById('headerSub').textContent =
+    session.participants.length + ' players · ' + session.tableCount + ' table' + (session.tableCount !== 1 ? 's' : '');
+
+  renderTables();
+  renderSideline();
+}
+
+function renderTables() {
+  const search = document.getElementById('tableSearch');
+  const container = document.getElementById('tablesContainer');
+  container.innerHTML = '';
+
+  for (let i = 1; i <= session.tableCount; i++) {
+    const tableId = String(i);
+    const players = session.tables[tableId] || [];
+    const isValid = players.length === 4;
+
+    const card = document.createElement('div');
+    card.className = 'table-card' + (isValid ? ' valid' : '');
+    card.id = 'table-' + tableId;
+
+    card.innerHTML = `
+      ${isValid ? `<button class="clear-table-btn" onclick="clearSingleTable('${tableId}')">✕</button>` : ''}
+      <div class="table-header">
+        <span class="table-name" onclick="toggleTable('${tableId}')" style="cursor:pointer; user-select:none; flex:1;">🀄 Table ${i}</span>
+        <span class="table-status ${isValid ? 'valid' : 'waiting'}">${isValid ? '✓ Ready' : players.length + '/4'}</span>
+        <span id="tableChevron-${tableId}" onclick="toggleTable('${tableId}')" style="font-size:10px; color:var(--gray); margin-left:4px; cursor:pointer;">▲</span>
+      </div>
+      <div id="tableBody-${tableId}">
+        <div class="table-seats" id="seats-${tableId}"
+          ondragover="onDragOver(event, 'table')"
+          ondragleave="onDragLeave(event, 'table')"
+          ondrop="onDrop(event, 'table', '${tableId}')">
+          ${renderSeats(tableId, players)}
+        </div>
+        <div class="table-actions" id="actions-${tableId}">
+          <button class="btn-draw" onclick="addDraw('${tableId}')">🤝 Draw (0 pts)</button>
+          <button class="btn-draw" onclick="openWinPanel('${tableId}')" style="background:#ebf4ff;color:#3182ce;">👑 Winner...</button>
+        </div>
+        <div class="win-panel" id="winPanel-${tableId}"></div>
+      </div>
+    `;
+
+    container.appendChild(card);
+
+    if (collapsedTables[tableId]) {
+      const body = document.getElementById('tableBody-' + tableId);
+      const chevron = document.getElementById('tableChevron-' + tableId);
+      if (body) body.style.display = 'none';
+      if (chevron) chevron.textContent = '▼';
+    }
+  }
+}
+
+function renderSeats(tableId, players) {
+  let html = '';
+  for (let s = 0; s < 4; s++) {
+    const p = players[s];
+    if (p) {
+      const info = allPlayers.find(x => x.name === p) || { name: p, icon: '👤' };
+      html += `<div class="seat-slot occupied" id="seat-${tableId}-${s}">
+        ${renderChip(info, tableId)}
+      </div>`;
+    } else {
+      html += `<div class="seat-slot" id="seat-${tableId}-${s}"
+        ondragover="onDragOver(event, 'table')"
+        ondragleave="onDragLeave(event, 'table')"
+        ondrop="onDrop(event, 'table', '${tableId}')"
+        onclick="openPicker('${tableId}')"
+        style="cursor:pointer;">
+        <span class="empty-seat-hint">+ Add</span>
+      </div>`;
+    }
+  }
+  return html;
+}
+
+function renderChip(playerInfo, context) {
+  return `<div class="player-chip"
+      draggable="true"
+      data-player="${playerInfo.name}"
+      data-source="${context}"
+      ondragstart="onDragStart(event, '${playerInfo.name}', '${context}')"
+      ondragend="onDragEnd(event)">
+    ${context !== 'sideline' ? `<button class="chip-remove-btn" onclick="removeToSideline('${context}', '${playerInfo.name}', event)" title="Remove">×</button>` : ''}
+    <div class="chip-icon">${playerInfo.icon || '👤'}</div>
+    <div class="chip-name" title="${playerInfo.name}">${shortName(playerInfo.name)}</div>
+    ${context !== 'sideline' ? `<button class="chip-win-btn" onclick="selectWinner('${context}', '${playerInfo.name}', event)" title="Won!">👑</button>` : ''}
+    ${context !== 'sideline' ? `<button class="chip-swap-btn" onclick="openSwapPicker('${context}', '${playerInfo.name}', event)" title="Swap">⇄</button>` : ''}
+  </div>`;
+}
+
+function renderSideline() {
+  const area = document.getElementById('sidelineArea');
+  const players = session.sideline || [];
+  const empty = document.getElementById('sidelineEmpty');
+
+  // Remove old chips, keep empty hint
+  [...area.querySelectorAll('.player-chip')].forEach(el => el.remove());
+
+  if (players.length === 0) {
+    empty.style.display = 'block';
+  } else {
+    empty.style.display = 'none';
+    players.forEach(name => {
+      const info = allPlayers.find(x => x.name === name) || { name, icon: '👤' };
+      area.insertAdjacentHTML('beforeend', renderChip(info, 'sideline'));
+    });
+  }
+  document.getElementById('sidelineCount').textContent = players.length;
+}
+
+// ══════════════════════════════════════════════════════════
+// DRAG & DROP
+// ══════════════════════════════════════════════════════════
+function onDragStart(event, playerName, source) {
+  dragPlayer = playerName;
+  dragSource = source;
+  event.dataTransfer.effectAllowed = 'move';
+  event.dataTransfer.setData('text/plain', playerName);
+  setTimeout(() => {
+    const chip = event.target.closest('.player-chip');
+    if (chip) chip.classList.add('dragging');
+  }, 0);
+  // Close any open win panel
+  closeAllWinPanels();
+}
+
+function onDragEnd(event) {
+  document.querySelectorAll('.player-chip.dragging').forEach(el => el.classList.remove('dragging'));
+  document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+  document.querySelectorAll('.drag-target').forEach(el => el.classList.remove('drag-target'));
+}
+
+function onDragOver(event, zone) {
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'move';
+  const target = event.currentTarget;
+  if (zone === 'sideline') {
+    document.getElementById('sidelineArea').classList.add('drag-over');
+  } else {
+    target.classList.add('drag-over');
+  }
+}
+
+function onDragLeave(event, zone) {
+  event.currentTarget.classList.remove('drag-over');
+  if (zone === 'sideline') {
+    document.getElementById('sidelineArea').classList.remove('drag-over');
+  }
+}
+
+function onDrop(event, zone, tableId) {
+  event.preventDefault();
+  event.stopPropagation();
+  event.currentTarget.classList.remove('drag-over');
+  document.getElementById('sidelineArea').classList.remove('drag-over');
+
+  if (!dragPlayer) return;
+
+  const player = dragPlayer;
+  const source = dragSource;
+  dragPlayer = null;
+  dragSource = null;
+
+  if (zone === 'sideline') {
+    if (source === 'sideline') return; // no-op
+    // Remove from table
+    if (source) {
+      session.tables[source] = (session.tables[source] || []).filter(p => p !== player);
+    }
+    if (!session.sideline.includes(player)) session.sideline.push(player);
+  } else if (zone === 'table') {
+    const targetPlayers = session.tables[tableId] || [];
+    if (targetPlayers.includes(player)) return; // already there
+
+    // Check if dropping onto an occupied seat (swap)
+    const targetEl = event.target.closest('.player-chip');
+    const targetPlayer = targetEl ? targetEl.dataset.player : null;
+
+    if (targetPlayer && targetPlayer !== player) {
+      // Swap: put targetPlayer where player came from
+      if (source === 'sideline') {
+        session.sideline = session.sideline.filter(p => p !== player);
+        session.sideline.push(targetPlayer);
+      } else if (source && source !== tableId) {
+        session.tables[source] = session.tables[source].filter(p => p !== player);
+        session.tables[source].push(targetPlayer);
+      } else {
+        // Same table swap — just swap positions
+        const sourceIdx = targetPlayers.indexOf(targetPlayer);
+        const playerIdx = targetPlayers.indexOf(player);
+        if (playerIdx !== -1) targetPlayers[playerIdx] = targetPlayer;
+        if (sourceIdx !== -1) targetPlayers[sourceIdx] = player;
+        session.tables[tableId] = targetPlayers;
+        persistAndRender();
+        return;
+      }
+      // Replace targetPlayer with player in target table
+      const idx = targetPlayers.indexOf(targetPlayer);
+      if (idx !== -1) targetPlayers[idx] = player;
+      else targetPlayers.push(player);
+      session.tables[tableId] = targetPlayers;
+
+    } else {
+      // Normal drop into empty seat
+      if (targetPlayers.length >= 4) { showToast('Table is full (4/4)'); return; }
+      if (source === 'sideline') {
+        session.sideline = session.sideline.filter(p => p !== player);
+      } else if (source && source !== tableId) {
+        session.tables[source] = session.tables[source].filter(p => p !== player);
+      }
+      if (!session.tables[tableId]) session.tables[tableId] = [];
+      session.tables[tableId].push(player);
+    }
+  }
+
+  persistAndRender();
+}
+
+// ══════════════════════════════════════════════════════════
+// WIN FLOW
+// ══════════════════════════════════════════════════════════
+function openWinPanel(tableId) {
+  closeAllWinPanels();
+  const players = session.tables[tableId] || [];
+  if (players.length !== 4) return;
+
+  winState = { tableId, winner: null, winType: null, loser: null, fan: null };
+
+  const panel = document.getElementById('winPanel-' + tableId);
+  panel.classList.add('active');
+  renderWinPanel(tableId);
+}
+
+function selectWinner(tableId, playerName, event) {
+  event.stopPropagation();
+  closeAllWinPanels();
+  winState = { tableId, winner: playerName, winType: null, loser: null, fan: null };
+  const panel = document.getElementById('winPanel-' + tableId);
+  panel.classList.add('active');
+  renderWinPanel(tableId);
+}
+
+function renderWinPanel(tableId) {
+  const players = session.tables[tableId] || [];
+  const panel = document.getElementById('winPanel-' + tableId);
+
+  // Winner select row
+  let winnerChips = players.map(p => {
+    const info = allPlayers.find(x => x.name === p) || { name: p, icon: '👤' };
+    const sel = winState.winner === p;
+    return `<span class="loser-chip${sel ? ' selected' : ''}" onclick="setWinner('${tableId}','${p}')">${info.icon || '👤'} ${shortName(p)}</span>`;
+  }).join('');
+
+  // Win type
+  const selfSel = winState.winType === 'self';
+  const discSel = winState.winType === 'discard';
+
+  // Loser chips
+  const others = players.filter(p => p !== winState.winner);
+  let loserChips = others.map(p => {
+    const info = allPlayers.find(x => x.name === p) || { name: p, icon: '👤' };
+    const sel = winState.loser === p;
+    return `<span class="loser-chip${sel ? ' selected' : ''}" onclick="setLoser('${tableId}','${p}')">${info.icon || '👤'} ${shortName(p)}</span>`;
+  }).join('');
+
+  // Fan chips
+  let fanChips = [3,4,5,6,7,8,9,10,11,12,13].map(f => {
+    const sel = winState.fan === f;
+    return `<span class="fan-chip${sel ? ' selected' : ''}" onclick="setFan('${tableId}',${f})">${f}${f===13?'+ 🔥':''}</span>`;
+  }).join('');
+
+  // Score preview
+  const preview = calcScores();
+  let previewHTML = '';
+  if (preview) {
+    const rows = Object.entries(preview).map(([p, s]) => {
+      const info = allPlayers.find(x => x.name === p) || { name: p, icon: '👤' };
+      const cls = s > 0 ? 'pos' : s < 0 ? 'neg' : 'score-zero';
+      return `<div class="score-preview-item">
+        <div class="score-preview-name">${info.icon || '👤'} ${shortName(p)}</div>
+        <div class="score-preview-val ${cls}">${s > 0 ? '+' : ''}${s}</div>
+      </div>`;
+    }).join('');
+    previewHTML = `<div class="score-preview visible"><div class="score-preview-grid">${rows}</div></div>`;
+  } else {
+    previewHTML = `<div class="score-preview"></div>`;
+  }
+
+  const canSubmit = preview !== null;
+
+  panel.innerHTML = `
+    <div class="win-panel-title">👑 Select Winner</div>
+
+    <div class="loser-row visible" style="margin-bottom:8px;">
+      <div class="loser-label">Who won?</div>
+      <div class="loser-chips">${winnerChips}</div>
+    </div>
+
+    ${winState.winner ? `
+    <div class="win-type-row">
+      <button class="win-type-btn${selfSel ? ' selected' : ''}" onclick="setWinType('${tableId}','self')">🀄 Self-draw<br><small style="font-weight:400;font-size:9px;">自摸</small></button>
+      <button class="win-type-btn${discSel ? ' selected' : ''}" onclick="setWinType('${tableId}','discard')">🎴 Discard win</button>
+    </div>
+
+    ${discSel ? `
+    <div class="loser-row visible">
+      <div class="loser-label">Who discarded?</div>
+      <div class="loser-chips">${loserChips}</div>
+    </div>` : ''}
+
+    ${winState.winType ? `
+    <div class="fan-row">
+      <div class="fan-label"><span>Fan (3–13)</span>${winState.fan ? `<span style="color:var(--purple);font-weight:700;">${FAN_POINTS[winState.fan] || 384} pts base</span>` : ''}</div>
+      <div class="fan-chips">${fanChips}</div>
+    </div>` : ''}
+
+    ${previewHTML}
+    ` : ''}
+
+    <div class="win-panel-actions">
+      <button class="btn-cancel-win" onclick="closeAllWinPanels()">✕ Cancel</button>
+      <button class="btn-submit-game" id="submitWinBtn-${tableId}" onclick="submitWin('${tableId}')" ${canSubmit ? '' : 'disabled'}>Add Game ✓</button>
+    </div>
+  `;
+}
+
+function setWinner(tableId, name) {
+  winState.winner = name;
+  winState.winType = null;
+  winState.loser = null;
+  winState.fan = null;
+  renderWinPanel(tableId);
+}
+
+function setWinType(tableId, type) {
+  winState.winType = type;
+  if (type === 'self') winState.loser = null;
+  renderWinPanel(tableId);
+}
+
+function setLoser(tableId, name) {
+  winState.loser = name;
+  renderWinPanel(tableId);
+}
+
+function setFan(tableId, fan) {
+  winState.fan = fan;
+  renderWinPanel(tableId);
+}
+
+function calcScores() {
+  const { winner, winType, loser, fan } = winState;
+  const tableId = winState.tableId;
+  if (!winner || !winType || !fan) return null;
+  if (winType === 'discard' && !loser) return null;
+  const players = session.tables[tableId] || [];
+  const base = fan >= 13 ? 384 : FAN_POINTS[fan];
+  const scores = {};
+  const nonWinners = players.filter(p => p !== winner);
+  if (winType === 'self') {
+    scores[winner] = base * 3;
+    nonWinners.forEach(p => scores[p] = -base);
+  } else {
+    scores[winner] = base * 2;
+    scores[loser] = -base * 2;
+    nonWinners.filter(p => p !== loser).forEach(p => scores[p] = 0);
+  }
+  return scores;
+}
+
+function submitWin(tableId) {
+  const scores = calcScores();
+  if (!scores) return;
+
+  const btn = document.getElementById('submitWinBtn-' + tableId);
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+
+  google.script.run
+    .withSuccessHandler(() => {
+      showScoreFlash(scores, winState.winner);
+      closeAllWinPanels();
+      winState = { tableId: null, winner: null, winType: null, loser: null, fan: null };
+    })
+    .withFailureHandler(err => {
+      if (btn) { btn.disabled = false; btn.textContent = 'Add Game ✓'; }
+      showToast('Error: ' + err.message);
+    })
+    .submitGame(scores);
+}
+
+function addDraw(tableId) {
+  const players = session.tables[tableId] || [];
+  if (players.length !== 4) return;
+  const scores = {};
+  players.forEach(p => scores[p] = 0);
+
+  google.script.run
+    .withSuccessHandler(() => showScoreFlash(scores, null))
+    .withFailureHandler(err => showToast('Error: ' + err.message))
+    .submitGame(scores);
+}
+
+function closeAllWinPanels() {
+  document.querySelectorAll('.win-panel').forEach(el => {
+    el.classList.remove('active');
+    el.innerHTML = '';
+  });
+  winState = { tableId: null, winner: null, winType: null, loser: null, fan: null };
+}
+
+// ══════════════════════════════════════════════════════════
+// SCORE FLASH
+// ══════════════════════════════════════════════════════════
+function showScoreFlash(scores, winner) {
+  const div = document.createElement('div');
+  div.className = 'score-flash';
+
+  const title = winner ? `👑 ${shortName(winner)} wins!` : '🤝 Draw!';
+  const rows = Object.entries(scores).map(([p, s]) => {
+    const info = allPlayers.find(x => x.name === p) || { name: p, icon: '👤' };
+    const cls = s > 0 ? 'pos' : s < 0 ? 'neg' : '';
+    return `<div class="flash-row">
+      <span>${info.icon || '👤'} ${shortName(p)}</span>
+      <span class="flash-score-val ${cls}">${s > 0 ? '+' : ''}${s}</span>
+    </div>`;
+  }).join('');
+
+  div.innerHTML = `<div class="flash-title">${title}</div><div class="flash-scores">${rows}</div>`;
+  document.body.appendChild(div);
+
+  setTimeout(() => div.remove(), 2200);
+}
+
+// ══════════════════════════════════════════════════════════
+// CLEAR SESSION
+// ══════════════════════════════════════════════════════════
+function confirmClearSession() {
+  if (!confirm('Clear this session? Table assignments and participation will be reset.')) return;
+
+  google.script.run
+    .withSuccessHandler(() => {
+      session = { active: false, tableCount: 1, participants: [], tables: {}, sideline: [] };
+      showToast('Session cleared!');
+      showSetupPage();
+    })
+    .withFailureHandler(err => showToast('Error: ' + err.message))
+    .clearSession();
+}
+
+// ══════════════════════════════════════════════════════════
+// PERSIST & RENDER
+// ══════════════════════════════════════════════════════════
+function persistAndRender() {
+  renderTables();
+  renderSideline();
+  filterTables();
+  // Fire-and-forget persist (non-blocking)
+  google.script.run
+    .withFailureHandler(err => console.warn('Persist error:', err.message))
+    .saveSessionLayout(session.tables, session.sideline);
+}
+
+// ══════════════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════════════
+function hidePage() {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+}
+
+function showToast(msg, duration = 2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', duration);
+}
+
+function showError(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', 3000);
+}
+
+function shortName(name) {
+  if (!name) return '';
+  return name.length > 10 ? name.substring(0, 9) + '…' : name;
+}
+
+function toggleHeaderMenu() {
+  const menu = document.getElementById('headerMenu');
+  menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+}
+
+// Close menu if clicking outside
+document.addEventListener('click', e => {
+  if (!e.target.closest('#btnMenu') && !e.target.closest('#headerMenu')) {
+    const menu = document.getElementById('headerMenu');
+    if (menu) menu.style.display = 'none';
+  }
+});
+
+function toggleInfo() {
+  const overlay = document.getElementById('infoOverlay');
+  overlay.style.display = overlay.style.display === 'none' ? 'block' : 'none';
+}
+
+function removeToSideline(tableId, playerName, event) {
+  event.stopPropagation();
+  session.tables[tableId] = (session.tables[tableId] || []).filter(p => p !== playerName);
+  if (!session.sideline.includes(playerName)) session.sideline.push(playerName);
+  persistAndRender();
+}
+
+let sidelineCollapsed = false;
+function toggleSideline() {
+  sidelineCollapsed = !sidelineCollapsed;
+  document.getElementById('sidelineBody').style.display = sidelineCollapsed ? 'none' : 'block';
+  document.getElementById('sidelineChevron').textContent = sidelineCollapsed ? '▼' : '▲';
+}
+
+function filterTables() {
+  const q = document.getElementById('tableSearch').value.toLowerCase().trim();
+  document.querySelectorAll('.table-card').forEach(card => {
+    if (!q) { card.style.display = ''; return; }
+    const tableName = card.querySelector('.table-name').textContent.toLowerCase();
+    const playerNames = [...card.querySelectorAll('.chip-name')].map(el => el.textContent.toLowerCase());
+    const match = tableName.includes(q) || playerNames.some(n => n.includes(q));
+    card.style.display = match ? '' : 'none';
+  });
+}
+
+const collapsedTables = {};
+function toggleTable(tableId) {
+  collapsedTables[tableId] = !collapsedTables[tableId];
+  const body = document.getElementById('tableBody-' + tableId);
+  const chevron = document.getElementById('tableChevron-' + tableId);
+  if (body) body.style.display = collapsedTables[tableId] ? 'none' : '';
+  if (chevron) chevron.textContent = collapsedTables[tableId] ? '▼' : '▲';
+}
+
+function clearSingleTable(tableId) {
+  const players = session.tables[tableId] || [];
+  players.forEach(p => {
+    if (!session.sideline.includes(p)) session.sideline.push(p);
+  });
+  session.tables[tableId] = [];
+  persistAndRender();
+  showToast('Table cleared.');
+}
+
+let pickerTableId = null;
+
+function openPicker(tableId) {
+  pickerTableId = tableId;
+  document.getElementById('pickerTableLabel').textContent = tableId;
+  document.getElementById('pickerSearch').value = '';
+  document.getElementById('pickerOverlay').style.display = 'flex';
+  filterPicker();
+}
+
+function closePicker() {
+  document.getElementById('pickerOverlay').style.display = 'none';
+  pickerTableId = null;
+}
+
+function filterPicker() {
+  const q = document.getElementById('pickerSearch').value.toLowerCase();
+  const list = document.getElementById('pickerList');
+  const empty = document.getElementById('pickerEmpty');
+  const available = session.sideline;
+
+  const filtered = available.filter(name => name.toLowerCase().includes(q));
+
+  if (filtered.length === 0) {
+    list.innerHTML = '';
+    empty.textContent = q ? 'No players match your search.' : 'No players on sideline.';
+    return;
+  }
+
+  empty.textContent = '';
+  list.innerHTML = filtered.map(name => {
+    const info = allPlayers.find(x => x.name === name) || { name, icon: '👤' };
+    return `<div onclick="pickPlayer('${name}')" style="display:flex; flex-direction:column; align-items:center; width:60px; cursor:pointer; padding:6px 4px; border-radius:8px; border:2px solid #e2e8f0; background:white; transition:all 0.15s;"
+      onmouseover="this.style.borderColor='#667eea';this.style.background='#ebf4ff'"
+      onmouseout="this.style.borderColor='#e2e8f0';this.style.background='white'">
+      <div style="width:36px; height:36px; background:linear-gradient(135deg,#ebf4ff,#e9d8fd); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:20px;">${info.icon || '👤'}</div>
+      <div style="font-size:9px; font-weight:700; color:#4a5568; margin-top:4px; text-align:center; max-width:56px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${shortName(name)}</div>
+    </div>`;
+  }).join('');
+}
+
+function pickPlayer(playerName) {
+  if (!pickerTableId) return;
+  const targetPlayers = session.tables[pickerTableId] || [];
+  if (targetPlayers.length >= 4) { showToast('Table is full.'); return; }
+  if (targetPlayers.includes(playerName)) return;
+
+  session.sideline = session.sideline.filter(p => p !== playerName);
+  session.tables[pickerTableId].push(playerName);
+
+  // Keep picker open if table still has empty seats
+  persistAndRender();
+  if ((session.tables[pickerTableId] || []).length < 4) {
+    filterPicker();
+  } else {
+    closePicker();
+  }
+}
+
+let swapPickerTableId = null;
+let swapPickerPlayer = null;
+
+function openSwapPicker(tableId, playerName, event) {
+  event.stopPropagation();
+  swapPickerTableId = tableId;
+  swapPickerPlayer = playerName;
+  document.getElementById('swapPickerLabel').textContent = shortName(playerName);
+  document.getElementById('swapPickerSearch').value = '';
+  document.getElementById('swapPickerOverlay').style.display = 'flex';
+  filterSwapPicker();
+}
+
+function closeSwapPicker() {
+  document.getElementById('swapPickerOverlay').style.display = 'none';
+  swapPickerTableId = null;
+  swapPickerPlayer = null;
+}
+
+function filterSwapPicker() {
+  const q = document.getElementById('swapPickerSearch').value.toLowerCase();
+  const list = document.getElementById('swapPickerList');
+  const empty = document.getElementById('swapPickerEmpty');
+
+  // All players except the one being swapped
+  const available = session.participants.filter(p => p !== swapPickerPlayer);
+  const filtered = available.filter(name => name.toLowerCase().includes(q));
+
+  if (filtered.length === 0) {
+    list.innerHTML = '';
+    empty.textContent = 'No players match your search.';
+    return;
+  }
+
+  empty.textContent = '';
+  list.innerHTML = filtered.map(name => {
+    const info = allPlayers.find(x => x.name === name) || { name, icon: '👤' };
+    const isAtTable = Object.entries(session.tables).find(([tid, players]) => players.includes(name));
+    const location = isAtTable ? `Table ${isAtTable[0]}` : 'Sideline';
+    const locationColor = isAtTable ? '#667eea' : '#48bb78';
+    return `<div onclick="doSwap('${name}')" style="display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:8px; border:2px solid #e2e8f0; background:white; cursor:pointer; transition:all 0.15s;"
+      onmouseover="this.style.borderColor='#667eea';this.style.background='#ebf4ff'"
+      onmouseout="this.style.borderColor='#e2e8f0';this.style.background='white'">
+      <div style="width:36px; height:36px; background:linear-gradient(135deg,#ebf4ff,#e9d8fd); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0;">${info.icon || '👤'}</div>
+      <div style="flex:1; min-width:0;">
+        <div style="font-size:12px; font-weight:700; color:#2d3748;">${name}</div>
+        <div style="font-size:10px; font-weight:600; color:${locationColor};">${location}</div>
+      </div>
+      <div style="font-size:11px; color:#a0aec0;">⇄</div>
+    </div>`;
+  }).join('');
+}
+
+function doSwap(targetPlayer) {
+  const sourceTable = swapPickerTableId;
+  const sourcePlayer = swapPickerPlayer;
+
+  // Find where targetPlayer currently is
+  let targetTable = null;
+  for (const [tid, players] of Object.entries(session.tables)) {
+    if (players.includes(targetPlayer)) { targetTable = tid; break; }
+  }
+  const targetOnSideline = session.sideline.includes(targetPlayer);
+
+  // Remove sourcePlayer from their table
+  session.tables[sourceTable] = session.tables[sourceTable].filter(p => p !== sourcePlayer);
+
+  // Remove targetPlayer from wherever they are
+  if (targetTable) {
+    session.tables[targetTable] = session.tables[targetTable].filter(p => p !== targetPlayer);
+    session.tables[targetTable].push(sourcePlayer); // put sourcePlayer in target's old table
+  } else if (targetOnSideline) {
+    session.sideline = session.sideline.filter(p => p !== targetPlayer);
+    session.sideline.push(sourcePlayer); // put sourcePlayer on sideline
+  }
+
+  // Put targetPlayer in sourcePlayer's old table
+  session.tables[sourceTable].push(targetPlayer);
+
+  closeSwapPicker();
+  persistAndRender();
+}
+
+</script>
+<div id="infoOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:500; padding:16px; overflow-y:auto;">
+  <div style="background:white; border-radius:14px; overflow:hidden; max-width:380px; margin:0 auto;">
+    <!-- Info header -->
+    <div style="background:linear-gradient(135deg,#667eea,#764ba2); padding:16px 18px; display:flex; align-items:center; justify-content:space-between;">
+      <div>
+        <div style="font-size:16px; font-weight:800; color:white;">🀄 Session Manager</div>
+        <div style="font-size:11px; color:rgba(255,255,255,0.75); margin-top:2px;">How it works</div>
+      </div>
+      <button onclick="toggleInfo()" style="background:rgba(255,255,255,0.2); border:none; border-radius:8px; color:white; font-size:18px; width:32px; height:32px; cursor:pointer; display:flex; align-items:center; justify-content:center;">×</button>
+    </div>
+
+    <!-- Info body -->
+    <div style="padding:16px 18px; display:flex; flex-direction:column; gap:14px;">
+
+      <div class="info-section">
+        <div class="info-icon">📋</div>
+        <div>
+          <div class="info-title">What is a Session?</div>
+          <div class="info-body">A session is a single mahjong night. You choose which players are attending and how many tables are running. The session tracks who is seated where and records all games played during the night.</div>
+        </div>
+      </div>
+
+      <div class="info-section">
+        <div class="info-icon">🔢</div>
+        <div>
+          <div class="info-title">Number of Tables</div>
+          <div class="info-body">Set how many tables will be running simultaneously. Each table seats exactly 4 players. You can have as many tables as you need.</div>
+        </div>
+      </div>
+
+      <div class="info-section">
+        <div class="info-icon">👥</div>
+        <div>
+          <div class="info-title">Selecting Players</div>
+          <div class="info-body">Choose all players attending tonight. Anyone not selected won't appear in the session. You need at least 4 players to start. Use the search bar to find players quickly.</div>
+        </div>
+      </div>
+
+      <div class="info-section">
+        <div class="info-icon">🪑</div>
+        <div>
+          <div class="info-title">Sideline</div>
+          <div class="info-body">Players who are attending but not currently seated at a table sit on the sideline. Drag them to a table when they're ready to play, or drag them back to the sideline between rounds.</div>
+        </div>
+      </div>
+
+      <div class="info-section">
+        <div class="info-icon">🎴</div>
+        <div>
+          <div class="info-title">Recording a Game</div>
+          <div class="info-body">Once a table has 4 players it shows <strong>✓ Ready</strong>. After a game finishes, tap <strong>Winner...</strong> to record who won, the win type (self-draw or discard), and the fan count. Or tap <strong>Draw</strong> if no one won.</div>
+        </div>
+      </div>
+
+      <div class="info-section">
+        <div class="info-icon">🀄</div>
+        <div>
+          <div class="info-title">Fan Scoring</div>
+          <div class="info-body">Scores are based on fan count (3–13+). <strong>Self-draw:</strong> winner gets 3× base, each loser pays 1× base. <strong>Discard win:</strong> winner gets 2× base, the discarder pays 2× base, others pay nothing.</div>
+        </div>
+      </div>
+
+      <div style="background:#f7fafc; border-radius:10px; padding:12px 14px;">
+        <div style="font-size:11px; font-weight:700; color:#4a5568; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">Fan → Base Points</div>
+        <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:4px;">
+          <div style="background:white; border-radius:6px; padding:4px 6px; text-align:center; border:1px solid #e2e8f0;"><div style="font-size:10px; color:#718096;">3 fan</div><div style="font-size:12px; font-weight:800; color:#667eea;">8</div></div>
+          <div style="background:white; border-radius:6px; padding:4px 6px; text-align:center; border:1px solid #e2e8f0;"><div style="font-size:10px; color:#718096;">4 fan</div><div style="font-size:12px; font-weight:800; color:#667eea;">16</div></div>
+          <div style="background:white; border-radius:6px; padding:4px 6px; text-align:center; border:1px solid #e2e8f0;"><div style="font-size:10px; color:#718096;">5 fan</div><div style="font-size:12px; font-weight:800; color:#667eea;">24</div></div>
+          <div style="background:white; border-radius:6px; padding:4px 6px; text-align:center; border:1px solid #e2e8f0;"><div style="font-size:10px; color:#718096;">6 fan</div><div style="font-size:12px; font-weight:800; color:#667eea;">32</div></div>
+          <div style="background:white; border-radius:6px; padding:4px 6px; text-align:center; border:1px solid #e2e8f0;"><div style="font-size:10px; color:#718096;">7 fan</div><div style="font-size:12px; font-weight:800; color:#667eea;">48</div></div>
+          <div style="background:white; border-radius:6px; padding:4px 6px; text-align:center; border:1px solid #e2e8f0;"><div style="font-size:10px; color:#718096;">8 fan</div><div style="font-size:12px; font-weight:800; color:#667eea;">64</div></div>
+          <div style="background:white; border-radius:6px; padding:4px 6px; text-align:center; border:1px solid #e2e8f0;"><div style="font-size:10px; color:#718096;">9 fan</div><div style="font-size:12px; font-weight:800; color:#667eea;">96</div></div>
+          <div style="background:white; border-radius:6px; padding:4px 6px; text-align:center; border:1px solid #e2e8f0;"><div style="font-size:10px; color:#718096;">10 fan</div><div style="font-size:12px; font-weight:800; color:#667eea;">128</div></div>
+          <div style="background:white; border-radius:6px; padding:4px 6px; text-align:center; border:1px solid #e2e8f0;"><div style="font-size:10px; color:#718096;">11 fan</div><div style="font-size:12px; font-weight:800; color:#667eea;">192</div></div>
+          <div style="background:white; border-radius:6px; padding:4px 6px; text-align:center; border:1px solid #e2e8f0;"><div style="font-size:10px; color:#718096;">12 fan</div><div style="font-size:12px; font-weight:800; color:#667eea;">256</div></div>
+          <div style="background:white; border-radius:6px; padding:4px 6px; text-align:center; border:1px solid #e2e8f0;"><div style="font-size:10px; color:#718096;">13+ fan</div><div style="font-size:12px; font-weight:800; color:#667eea;">384</div></div>
+        </div>
+      </div>
+
+      <div class="info-section">
+        <div class="info-icon">⚙️</div>
+        <div>
+          <div class="info-title">Edit / Clear All Tables / Reset</div>
+          <div class="info-body"><strong>Edit</strong> lets you change which players are in the session or the number of tables. <strong>Clear All Tables</strong> moves everyone back to the sideline without ending the session. <strong>Reset Session</strong> wipes everything and starts fresh.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div id="pickerOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:600; padding:16px; display:none; align-items:center; justify-content:center;">
+  <div style="background:white; border-radius:14px; overflow:hidden; width:100%; max-width:340px; max-height:80vh; display:flex; flex-direction:column;">
+    <div style="background:linear-gradient(135deg,#667eea,#764ba2); padding:14px 16px; display:flex; align-items:center; justify-content:space-between;">
+      <div style="font-size:14px; font-weight:800; color:white;">Add Player to Table <span id="pickerTableLabel"></span></div>
+      <button onclick="closePicker()" style="background:rgba(255,255,255,0.2); border:none; border-radius:8px; color:white; font-size:18px; width:30px; height:30px; cursor:pointer;">×</button>
+    </div>
+    <div style="padding:10px 12px; border-bottom:1px solid #e2e8f0;">
+      <input type="text" id="pickerSearch" placeholder="Search players…"
+        style="width:100%; padding:8px 10px; border:2px solid #e2e8f0; border-radius:8px; font-size:13px;"
+        oninput="filterPicker()" />
+    </div>
+    <div id="pickerList" style="overflow-y:auto; padding:8px 12px; display:flex; flex-wrap:wrap; gap:8px; min-height:80px;"></div>
+    <div style="padding:10px 12px; border-top:1px solid #e2e8f0; font-size:11px; color:#a0aec0; text-align:center;" id="pickerEmpty"></div>
+  </div>
+</div>
+
+<div id="swapPickerOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:700; padding:16px; align-items:center; justify-content:center;">
+  <div style="background:white; border-radius:14px; overflow:hidden; width:100%; max-width:340px; max-height:80vh; display:flex; flex-direction:column;">
+    <div style="background:linear-gradient(135deg,#667eea,#764ba2); padding:14px 16px; display:flex; align-items:center; justify-content:space-between;">
+      <div>
+        <div style="font-size:14px; font-weight:800; color:white;">Swap <span id="swapPickerLabel"></span></div>
+        <div style="font-size:11px; color:rgba(255,255,255,0.75); margin-top:1px;">Select a player to swap with</div>
+      </div>
+      <button onclick="closeSwapPicker()" style="background:rgba(255,255,255,0.2); border:none; border-radius:8px; color:white; font-size:18px; width:30px; height:30px; cursor:pointer;">×</button>
+    </div>
+    <div style="padding:10px 12px; border-bottom:1px solid #e2e8f0;">
+      <input type="text" id="swapPickerSearch" placeholder="Search players…"
+        style="width:100%; padding:8px 10px; border:2px solid #e2e8f0; border-radius:8px; font-size:13px;"
+        oninput="filterSwapPicker()" />
+    </div>
+    <div id="swapPickerList" style="overflow-y:auto; padding:8px 12px; display:flex; flex-direction:column; gap:6px; min-height:80px;"></div>
+    <div style="padding:6px 12px 10px; font-size:11px; color:#a0aec0; text-align:center;" id="swapPickerEmpty"></div>
+  </div>
+</div>
+
+</body>
+</html>
