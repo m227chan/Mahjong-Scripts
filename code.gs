@@ -10,6 +10,9 @@ function onOpen() {
     .addSeparator()
     .addItem("📊 View Dashboard", "showDashboard")
     .addItem("🌐 Player Network", "showNetwork")
+    .addSeparator()
+    .addItem("⚡ Recalculate ELO", "recalculateElo")
+    .addItem("📖 How ELO Works", "showEloInfo")
     .addToUi();
 
   // Auto-open the game sidebar on spreadsheet load
@@ -21,6 +24,374 @@ function onOpen() {
 // This runs with more permissions and can open sidebars on load.
 function onOpenInstallable() {
   showSessionSidebar();
+}
+
+// ============================================================
+// FEATURE: ELO Info + Analytics Popup
+// ============================================================
+function showEloInfo() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const lbSheet = ss.getSheetByName('Leaderboard');
+  const lbData = lbSheet.getDataRange().getValues();
+
+  // Extract ELO columns (M=13, N=14, O=15, P=16 → 0-indexed 12,13,14,15)
+  // Also grab player name (col B = index 1)
+  const players = [];
+  for (let i = 1; i < lbData.length; i++) {
+    const row = lbData[i];
+    const name = String(row[1] || '').trim();
+    const rating = Number(row[12]);
+    const rank   = row[13];
+    const peak   = Number(row[14]);
+    const last5  = Number(row[15]);
+    const games  = Number(row[4]); // Games Played col E = index 4
+    if (!name || isNaN(rating) || rating === 0) continue;
+    players.push({ name, rating, rank, peak, last5, games });
+  }
+
+  const playersJson = JSON.stringify(players);
+
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
+body{background:#f8f9fa;color:#1a202c;font-size:14px;line-height:1.6;}
+
+.header{background:#1a202c;color:white;padding:28px 32px 24px;}
+.header h1{font-size:22px;font-weight:700;margin-bottom:4px;}
+.header p{font-size:14px;opacity:0.6;}
+
+.tabs{display:flex;background:#fff;border-bottom:1px solid #e2e8f0;padding:0 32px;}
+.tab{padding:14px 20px;font-size:13px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;color:#718096;transition:all 0.15s;}
+.tab.active{color:#1a202c;border-bottom-color:#667eea;}
+
+.panel{display:none;padding:28px 32px;}
+.panel.active{display:block;}
+
+/* --- HOW IT WORKS --- */
+.section{margin-bottom:32px;}
+.section h2{font-size:16px;font-weight:700;margin-bottom:12px;color:#1a202c;}
+.section p{color:#4a5568;font-size:14px;margin-bottom:10px;}
+
+.formula-block{background:#1a202c;color:#e2e8f0;border-radius:10px;padding:20px 24px;font-family:monospace;font-size:13px;line-height:2;margin:12px 0;}
+.formula-block .label{color:#a0aec0;font-family:-apple-system,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:8px;}
+.hl{color:#81e6d9;}
+.hl2{color:#fbd38d;}
+.hl3{color:#fc8181;}
+.hl4{color:#90cdf4;}
+
+.var-table{width:100%;border-collapse:collapse;margin:12px 0;}
+.var-table th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#718096;padding:6px 10px;border-bottom:2px solid #e2e8f0;}
+.var-table td{padding:8px 10px;font-size:13px;border-bottom:1px solid #f0f0f0;vertical-align:top;}
+.var-table td:first-child{font-family:monospace;color:#667eea;font-weight:700;white-space:nowrap;}
+.var-table tr:last-child td{border-bottom:none;}
+
+.k-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0;}
+.k-card{background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:14px;text-align:center;}
+.k-card .tier{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#718096;margin-bottom:4px;}
+.k-card .kval{font-size:26px;font-weight:800;color:#667eea;}
+.k-card .games{font-size:12px;color:#a0aec0;margin-top:2px;}
+
+.callout{border-left:3px solid #667eea;background:#f0f4ff;border-radius:0 8px 8px 0;padding:14px 16px;margin:12px 0;}
+.callout.warn{border-left-color:#ed8936;background:#fffaf0;}
+.callout.cutoff{border-left-color:#e53e3e;background:#fff5f5;}
+.callout strong{color:#1a202c;}
+
+.steps{counter-reset:step;}
+.step{display:flex;gap:14px;margin-bottom:16px;align-items:flex-start;}
+.step-num{background:#667eea;color:white;border-radius:50%;width:26px;height:26px;min-width:26px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;margin-top:1px;}
+.step-body{font-size:13px;color:#4a5568;}
+.step-body strong{color:#1a202c;}
+
+/* --- ANALYTICS --- */
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:24px;}
+.stat-card{background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:14px;}
+.stat-card .slabel{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#718096;margin-bottom:4px;}
+.stat-card .sval{font-size:20px;font-weight:800;color:#1a202c;}
+.stat-card .ssub{font-size:11px;color:#a0aec0;margin-top:2px;}
+
+.chart-section{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:20px;margin-bottom:16px;}
+.chart-section h3{font-size:13px;font-weight:700;color:#4a5568;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:16px;}
+
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:7px;}
+.bar-row .bname{font-size:12px;color:#4a5568;width:88px;text-align:right;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.bar-wrap{flex:1;background:#f0f4ff;border-radius:4px;height:20px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:4px;display:flex;align-items:center;padding-left:6px;font-size:11px;font-weight:700;color:white;transition:width 0.4s ease;}
+.bar-val{font-size:12px;color:#718096;margin-left:6px;flex-shrink:0;}
+
+.spark-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.spark-row .bname{font-size:12px;color:#4a5568;width:88px;text-align:right;flex-shrink:0;}
+.pill{display:inline-block;border-radius:12px;padding:3px 10px;font-size:12px;font-weight:700;}
+.pill.pos{background:#c6f6d5;color:#22543d;}
+.pill.neg{background:#fed7d7;color:#742a2a;}
+.pill.neu{background:#e2e8f0;color:#4a5568;}
+
+.gap-bar-row{display:flex;align-items:center;gap:8px;margin-bottom:7px;}
+.gap-label{font-size:12px;color:#4a5568;width:88px;text-align:right;flex-shrink:0;}
+.gap-bar-wrap{flex:1;position:relative;height:20px;}
+.gap-bar-fill{position:absolute;height:100%;border-radius:4px;}
+.gap-val{font-size:12px;color:#718096;width:40px;text-align:right;flex-shrink:0;}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>📊 ELO Rating System</h1>
+  <p>Mahjong Messiahs &mdash; How ratings are calculated &amp; current standings</p>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('how')">How it works</div>
+  <div class="tab" onclick="switchTab('analytics')">Analytics</div>
+</div>
+
+<!-- ===== HOW IT WORKS ===== -->
+<div id="panel-how" class="panel active">
+
+  <div class="section">
+    <h2>What is ELO?</h2>
+    <p>ELO is a zero-sum rating system — every point one player gains is lost by another. After each game, ratings shift based on <strong>who you beat</strong> and <strong>how surprising that result was</strong>. Beating a highly-rated player moves your rating more than beating a weaker one.</p>
+  </div>
+
+  <div class="section">
+    <h2>Core formula</h2>
+    <p>After each game, for every pair of players (A vs B):</p>
+    <div class="formula-block">
+      <span class="label">Step 1 — expected score (how likely A was to beat B)</span>
+      <span class="hl">E<sub>A</sub></span> = 1 / (1 + 10 <sup>(<span class="hl2">R<sub>B</sub></span> − <span class="hl2">R<sub>A</sub></span>) / <span class="hl3">400</span></sup>)
+    </div>
+    <div class="formula-block">
+      <span class="label">Step 2 — rating change</span>
+      ΔR<sub>A</sub> += <span class="hl4">K</span> × <span class="hl3">M</span> × (<span class="hl">S<sub>A</sub></span> − <span class="hl">E<sub>A</sub></span>)
+    </div>
+
+    <table class="var-table">
+      <tr><th>Variable</th><th>Meaning</th></tr>
+      <tr><td>R<sub>A</sub>, R<sub>B</sub></td><td>Current ratings of player A and B before the game</td></tr>
+      <tr><td>E<sub>A</sub></td><td>Probability A was expected to beat B, from 0 to 1. Equal ratings → E = 0.5 exactly</td></tr>
+      <tr><td>S<sub>A</sub></td><td>Actual result: <strong>1.0</strong> = win, <strong>0.5</strong> = draw (equal score), <strong>0.0</strong> = loss</td></tr>
+      <tr><td>K</td><td>K-factor — controls how fast ratings move (see below)</td></tr>
+      <tr><td>M</td><td>Margin of victory multiplier — bigger score gaps = bigger shifts (see below)</td></tr>
+      <tr><td>400</td><td>Scaling constant — inherited from chess (see below)</td></tr>
+    </table>
+
+    <p>All pairings in a game are evaluated simultaneously. Each player's total delta is the sum of their individual pairwise results against every other player at the table.</p>
+  </div>
+
+  <div class="section">
+    <h2>Why 400?</h2>
+    <p>The 400 is a <strong>scaling constant</strong> — mathematically arbitrary, chosen by convention, and inherited directly from chess. It controls how "spread out" the rating scale is: specifically, how large a rating gap needs to be before one player is considered a near-certain winner.</p>
+
+    <div class="formula-block">
+      <span class="label">What different rating gaps mean with divisor = 400</span>
+      Δ100 pts  →  <span class="hl">~64%</span> win probability
+      Δ200 pts  →  <span class="hl">~76%</span> win probability
+      Δ400 pts  →  <span class="hl">~91%</span> win probability
+      Δ800 pts  →  <span class="hl">~99%</span> win probability
+    </div>
+
+    <p>Arpad Elo chose 400 in the 1960s so that a <strong>400-point gap meant roughly 10:1 odds</strong> — a convenient anchor that kept ratings in a readable 1000–2000 range. The entire chess world standardised on it, and every other system (video games, sports, esports) adopted it to stay familiar and comparable.</p>
+
+    <div class="callout">
+      <strong>Does the 400 affect your club's rankings?</strong> Not at all — since it applies equally to everyone, all relative rankings are identical regardless of what constant you use. The only practical effect would be on how many points exchange hands per game. If ratings bunch too tightly or spread too far over time, tuning the <strong>K-factors</strong> is a far more targeted lever than changing the 400.
+    </div>
+
+    <p>If the divisor were changed to <strong>200</strong>, a 100-point gap would already imply ~76% confidence instead of 64% — ratings would feel more decisive. At <strong>800</strong>, you'd need a 400-point gap just to reach 91% — far more forgiving. The 400 sits in the middle: sensitive enough to be meaningful, forgiving enough that normal variance doesn't produce wild swings.</p>
+  </div>
+
+  <div class="section">
+    <h2>K-factor tiers</h2>
+    <p>New players move faster so they find their true level quickly. Veterans settle into more stable ratings.</p>
+    <div class="k-grid">
+      <div class="k-card"><div class="tier">New</div><div class="kval">40</div><div class="games">0–19 games</div></div>
+      <div class="k-card"><div class="tier">Mid</div><div class="kval">20</div><div class="games">20–49 games</div></div>
+      <div class="k-card"><div class="tier">Veteran</div><div class="kval">16</div><div class="games">50+ games</div></div>
+    </div>
+    <div class="callout">
+      <strong>Pairwise K averaging:</strong> When two players with different K-factors meet, their shared K is <code>(K<sub>A</sub> + K<sub>B</sub>) / 2</code>. This keeps the system zero-sum — points won always equal points lost.
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Margin of victory multiplier (M)</h2>
+    <p>Winning by more points rewards you more — but with diminishing returns to avoid runaway inflation.</p>
+    <div class="formula-block">
+      <span class="label">Continuous multiplier</span>
+      <span class="hl3">M</span> = 1.0 + log<sub>10</sub>(1 + |score<sub>A</sub> − score<sub>B</sub>| / 32)
+    </div>
+    <table class="var-table">
+      <tr><th>Score gap</th><th>Multiplier M</th><th>Effect</th></tr>
+      <tr><td>0 (draw)</td><td>1.00×</td><td>No amplification</td></tr>
+      <tr><td>32</td><td>~1.30×</td><td>Typical close game</td></tr>
+      <tr><td>96</td><td>~1.58×</td><td>Solid win</td></tr>
+      <tr><td>256</td><td>~1.95×</td><td>Dominant win</td></tr>
+      <tr><td>384+</td><td>~2.08×</td><td>Maximum spread (capped naturally by log)</td></tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>Starting rating &amp; reset</h2>
+    <div class="callout">
+      All players start at <strong>1500</strong>. Ratings are recalculated from scratch on every run, processing all eligible games in chronological order.
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>The April 25, 2026 cutoff</h2>
+    <div class="callout cutoff">
+      <strong>Why a cutoff?</strong> Before April 25 2026, the score sheet recorded <strong>0</strong> for every player not present in a game — making it impossible to distinguish "played and scored zero" from "wasn't there." Using those 0s as participation signals would unfairly penalise winners by treating absent players as opponents they drew against.
+    </div>
+    <br>
+    <p>The cutoff is handled in two stages:</p>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div class="step-body"><strong>Pre-cutoff (before Apr 25):</strong> Only <em>non-zero</em> scores count as participation. These games increment each player's <code>gamesPlayed</code> counter — which sets their K-factor tier — but produce <strong>no ELO delta</strong>. Ratings are unaffected.</div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-body"><strong>Post-cutoff (Apr 25 onward):</strong> Blank cells mean absent; 0 is a valid score. Full pairwise ELO calculation runs normally. Players enter this era already in the correct K-factor tier based on their pre-cutoff game history.</div></div>
+    </div>
+    <div class="callout warn">
+      <strong>What this means for veterans:</strong> A player like Monica with 98 games enters the ELO era at K=16 (veteran), so her rating moves slowly and reflects only post-cutoff performance. A genuinely new player still gets K=40 and will find their level faster.
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Tracked metrics</h2>
+    <table class="var-table">
+      <tr><th>Column</th><th>What it means</th></tr>
+      <tr><td>ELO Rating</td><td>Current rating after all post-cutoff games. Starts at 1500.</td></tr>
+      <tr><td>ELO Rank</td><td>Ordinal rank by current rating. Only players with at least one post-cutoff game are ranked.</td></tr>
+      <tr><td>ELO Peak</td><td>The highest rating the player has ever reached. Shows career ceiling, not just current form.</td></tr>
+      <tr><td>ELO Δ Last 5</td><td>Sum of rating changes across the last 5 games. Positive = on a hot streak. Negative = cold streak.</td></tr>
+    </table>
+  </div>
+
+</div>
+
+<!-- ===== ANALYTICS ===== -->
+<div id="panel-analytics" class="panel">
+  <div id="analytics-content">Loading…</div>
+</div>
+
+<script>
+const players = ${playersJson};
+
+function switchTab(t) {
+  document.querySelectorAll('.tab').forEach((el,i) => el.classList.toggle('active', (i===0&&t==='how')||(i===1&&t==='analytics')));
+  document.getElementById('panel-how').classList.toggle('active', t==='how');
+  document.getElementById('panel-analytics').classList.toggle('active', t==='analytics');
+  if (t === 'analytics') renderAnalytics();
+}
+
+let analyticsRendered = false;
+function renderAnalytics() {
+  if (analyticsRendered) return;
+  analyticsRendered = true;
+
+  const sorted = [...players].sort((a,b) => b.rating - a.rating);
+  const maxRating = sorted[0].rating;
+  const minRating = sorted[sorted.length-1].rating;
+  const avgRating = Math.round(players.reduce((s,p)=>s+p.rating,0)/players.length);
+  const maxPeak = Math.max(...players.map(p=>p.peak));
+  const hottest = [...players].filter(p=>p.last5>0).sort((a,b)=>b.last5-a.last5)[0];
+  const coldest = [...players].filter(p=>p.last5<0).sort((a,b)=>a.last5-b.last5)[0];
+
+  const top10 = sorted.slice(0,10);
+  const barMax = top10[0].rating;
+  const barMin = 1400;
+
+  // Peak vs current — top 10 by peak drop
+  const peakDrop = [...players]
+    .map(p=>({name:p.name,drop:p.peak-p.rating,peak:p.peak,rating:p.rating}))
+    .sort((a,b)=>b.drop-a.drop).slice(0,8);
+
+  // Momentum — sorted by last5
+  const momentum = [...players].sort((a,b)=>b.last5-a.last5);
+  const momTop5 = momentum.slice(0,5);
+  const momBot5 = momentum.slice(-5).reverse();
+
+  let html = '';
+
+  // Stat cards
+  html += '<div class="stat-grid">';
+  html += statCard('Highest rated', sorted[0].name, sorted[0].rating + ' ELO');
+  html += statCard('Average ELO', avgRating.toString(), players.length + ' players ranked');
+  html += statCard('All-time peak', players.find(p=>p.peak===maxPeak)?.name || '—', maxPeak + ' ELO');
+  html += statCard('Hottest streak', hottest ? hottest.name : '—', hottest ? '+'+Math.round(hottest.last5)+' last 5' : '—');
+  html += '</div>';
+
+  // Top 10 ratings bar chart
+  html += '<div class="chart-section"><h3>Top 10 current ratings</h3>';
+  top10.forEach(p => {
+    const pct = Math.max(4, Math.round(((p.rating - barMin) / (barMax - barMin + 1)) * 100));
+    html += '<div class="bar-row">';
+    html += '<div class="bname" title="'+p.name+'">'+p.name+'</div>';
+    html += '<div class="bar-wrap"><div class="bar-fill" style="width:'+pct+'%;background:#667eea;">'+p.rating+'</div></div>';
+    html += '</div>';
+  });
+  html += '</div>';
+
+  // Peak vs Current
+  html += '<div class="chart-section"><h3>Biggest peak-to-current drops</h3>';
+  html += '<p style="font-size:12px;color:#a0aec0;margin-bottom:14px;">How far each player has fallen from their highest-ever rating</p>';
+  const dropMax = peakDrop[0].drop || 1;
+  peakDrop.forEach(p => {
+    const pct = Math.max(2, Math.round((p.drop / dropMax) * 100));
+    const col = p.drop > 100 ? '#e53e3e' : p.drop > 50 ? '#ed8936' : '#48bb78';
+    html += '<div class="bar-row">';
+    html += '<div class="bname" title="'+p.name+'">'+p.name+'</div>';
+    html += '<div class="bar-wrap"><div class="bar-fill" style="width:'+pct+'%;background:'+col+';">−'+Math.round(p.drop)+'</div></div>';
+    html += '<div class="bar-val">'+p.rating+' / '+p.peak+'</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+
+  // Momentum
+  html += '<div class="chart-section"><h3>Momentum — ELO Δ last 5 games</h3>';
+  html += '<p style="font-size:12px;color:#a0aec0;margin-bottom:14px;">Players on the hottest and coldest streaks right now</p>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">';
+  html += '<div><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#22543d;margin-bottom:10px;">Rising</div>';
+  momTop5.forEach(p => {
+    html += '<div class="spark-row"><div class="bname" title="'+p.name+'">'+p.name+'</div>';
+    html += '<span class="pill pos">+'+Math.round(p.last5)+'</span></div>';
+  });
+  html += '</div><div><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#742a2a;margin-bottom:10px;">Falling</div>';
+  momBot5.forEach(p => {
+    html += '<div class="spark-row"><div class="bname" title="'+p.name+'">'+p.name+'</div>';
+    html += '<span class="pill neg">'+Math.round(p.last5)+'</span></div>';
+  });
+  html += '</div></div></div>';
+
+  // Full standings
+  html += '<div class="chart-section"><h3>Full standings</h3>';
+  html += '<table style="width:100%;border-collapse:collapse;font-size:12px;">';
+  html += '<tr style="border-bottom:2px solid #e2e8f0;"><th style="text-align:left;padding:6px 8px;color:#718096;font-weight:700;">Rank</th><th style="text-align:left;padding:6px 8px;color:#718096;font-weight:700;">Player</th><th style="text-align:right;padding:6px 8px;color:#718096;font-weight:700;">Rating</th><th style="text-align:right;padding:6px 8px;color:#718096;font-weight:700;">Peak</th><th style="text-align:right;padding:6px 8px;color:#718096;font-weight:700;">Δ Last 5</th></tr>';
+  sorted.forEach((p,i) => {
+    const d = Math.round(p.last5);
+    const dCol = d > 0 ? '#22543d' : d < 0 ? '#742a2a' : '#718096';
+    const dPfx = d > 0 ? '+' : '';
+    html += '<tr style="border-bottom:1px solid #f0f0f0;">';
+    html += '<td style="padding:6px 8px;color:#a0aec0;">'+(i+1)+'</td>';
+    html += '<td style="padding:6px 8px;font-weight:'+(i<3?'700':'400')+';">'+p.name+'</td>';
+    html += '<td style="padding:6px 8px;text-align:right;font-weight:700;">'+p.rating+'</td>';
+    html += '<td style="padding:6px 8px;text-align:right;color:#a0aec0;">'+p.peak+'</td>';
+    html += '<td style="padding:6px 8px;text-align:right;color:'+dCol+';font-weight:600;">'+dPfx+d+'</td>';
+    html += '</tr>';
+  });
+  html += '</table></div>';
+
+  document.getElementById('analytics-content').innerHTML = html;
+}
+
+function statCard(label, value, sub) {
+  return '<div class="stat-card"><div class="slabel">'+label+'</div><div class="sval">'+value+'</div><div class="ssub">'+sub+'</div></div>';
+}
+</script>
+</body>
+</html>`;
+
+  const htmlOutput = HtmlService.createHtmlOutput(html)
+    .setWidth(820)
+    .setHeight(680);
+
+  SpreadsheetApp.getUi().showModalDialog(htmlOutput, '📊 ELO Rating System');
 }
 
 // ============================================================
@@ -236,7 +607,7 @@ function buildAddPlayerDialog(existingIcons) {
 
     google.script.run
       .withSuccessHandler(() => {
-        document.body.innerHTML = '<div style="text-align:center;padding:60px;font-family:sans-serif;"><h2>✅ Player Added!</h2><p style="color:#718096;">The leaderboard has been updated.</p></div>';
+        document.body.innerHTML = '<div style="text-align:center;padding:60px;font-family:sans-serif;"><h2>Player Added!</h2><p style="color:#718096;">The leaderboard has been updated.</p></div>';
         google.script.host.close(); // close immediately, sidebar will refresh
       })
       .withFailureHandler(err => {
@@ -250,76 +621,6 @@ function buildAddPlayerDialog(existingIcons) {
 </script>
 </body>
 </html>`;
-}
-
-function submitNewPlayer(playerName, icon) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const gamesSheet = ss.getSheetByName("Game Scores");
-  const leaderboardSheet = ss.getSheetByName("Leaderboard");
-
-  if (!playerName) throw new Error("Player name cannot be empty.");
-
-  // --- Check for duplicate name ---
-  const lastCol = gamesSheet.getLastColumn();
-  const headers = gamesSheet.getRange(1, 1, 1, lastCol).getValues()[0];
-  if (headers.includes(playerName)) throw new Error("A player with that name already exists.");
-
-  // --- Update Game Scores sheet ---
-  const lastDataRow = gamesSheet.getLastRow();
-  gamesSheet.getRange(1, lastCol + 1).setValue(playerName);
-  gamesSheet.getRange(lastDataRow, lastCol + 1).setFormula(`=SUM(Games[${playerName}])`);
-
-  // --- Update Leaderboard sheet ---
-  const lbLastRow = leaderboardSheet.getLastRow();
-  const newLbRow = lbLastRow + 1;
-
-  leaderboardSheet.getRange(newLbRow, 1).setFormula(
-    '=LET(rank,INDIRECT("D"&ROW()),total,COUNTA(D$2:D$999),IF(rank=1,"Messiah",IF(AND(rank>=2,rank<=3),"Master",IF(AND(rank>=4,rank<=6),"Musketeer",IF(AND(rank>=7,rank<=10),"Marshal",IF(rank=total,"Moron",IF(AND(rank>=total-2,rank<=total-1),"Mongrel",IF(AND(rank>=total-5,rank<=total-3),"Minion",IF(AND(rank>=total-9,rank<=total-6),"Mortal","Monk")))))))))'
-  );
-  leaderboardSheet.getRange(newLbRow, 2).setValue(playerName);
-  leaderboardSheet.getRange(newLbRow, 3).setFormula(
-    `=INDIRECT("'Game Scores'!" & ADDRESS(MATCH("Totals", 'Game Scores'!A:A, 0), MATCH(B${newLbRow}, 'Game Scores'!1:1, 0)))`
-  );
-
-  for (let r = 2; r <= newLbRow; r++) {
-    leaderboardSheet.getRange(r, 4).setFormula(`=RANK(C${r}, C$2:C$${newLbRow}, FALSE)`);
-  }
-
-  leaderboardSheet.getRange(newLbRow, 5).setFormula(
-    `=COUNTIF(INDEX(INDIRECT("'Game Scores'!$2:$"&(COUNTA('Game Scores'!A$2:A))), 0, MATCH(B${newLbRow}, 'Game Scores'!$1:$1, 0)), "<>")`
-  );
-  leaderboardSheet.getRange(newLbRow, 6).setFormula(
-    `=COUNTIF(INDEX(INDIRECT("'Game Scores'!$2:$"&(COUNTA('Game Scores'!A:A)-1)), 0, MATCH(B${newLbRow}, 'Game Scores'!$1:$1, 0)), ">0")`
-  );
-  leaderboardSheet.getRange(newLbRow, 7).setFormula(
-    `=COUNTIF(INDEX(INDIRECT("'Game Scores'!$2:$"&(COUNTA('Game Scores'!A:A)-1)), 0, MATCH(B${newLbRow}, 'Game Scores'!$1:$1, 0)), "<0")`
-  );
-  leaderboardSheet.getRange(newLbRow, 8).setFormula(`=IF(G${newLbRow}=0, 0, F${newLbRow}/G${newLbRow})`);
-
-  for (let r = 2; r <= newLbRow; r++) {
-    leaderboardSheet.getRange(r, 9).setFormula(`=RANK(H${r}, H$2:H$${newLbRow}, FALSE)`);
-  }
-
-  leaderboardSheet.getRange(newLbRow, 10).setFormula(
-    `=MAX(INDEX(INDIRECT("'Game Scores'!$2:$"&(COUNTA('Game Scores'!A:A)-1)), 0, MATCH(B${newLbRow}, 'Game Scores'!$1:$1, 0)))`
-  );
-  leaderboardSheet.getRange(newLbRow, 11).setFormula(
-    `=MIN(INDEX(INDIRECT("'Game Scores'!$2:$"&(COUNTA('Game Scores'!A:A)-1)), 0, MATCH(B${newLbRow}, 'Game Scores'!$1:$1, 0)))`
-  );
-
-  // --- Set icon (col 12 = L) ---
-  if (icon && icon.startsWith("data:image")) {
-    // Image: insert as base64 string in the cell (Sheets doesn't support embedded images via script easily, store URL/note)
-    leaderboardSheet.getRange(newLbRow, 12).setValue("📷");
-    leaderboardSheet.getRange(newLbRow, 12).setNote("Image icon: " + icon.substring(0, 100) + "...");
-  } else {
-    leaderboardSheet.getRange(newLbRow, 12).setValue(icon);
-  }
-
-  SpreadsheetApp.flush();
-  sortLeaderboard();
-  // Reopen the game sidebar so the new player appears
-  showSessionSidebar();
 }
 
 // ============================================================
@@ -780,7 +1081,7 @@ function buildFanGameSidebar(players) {
         document.getElementById('step2').classList.add('hidden');
         document.getElementById('preview').classList.add('hidden');
         btn.disabled = false;
-        btn.textContent = '✅ Game Added! Add Another';
+        btn.textContent = 'Game Added! Add Another';
         setTimeout(() => { btn.textContent = 'Add Game'; }, 3000);
       })
       .withFailureHandler(err => {
@@ -818,29 +1119,256 @@ function submitGame(scores) {
   }
 
   // Sort leaderboard after game is added
-  SpreadsheetApp.flush()
+  SpreadsheetApp.flush();
+  recalculateElo();
   sortLeaderboard();
+}
+
+// ============================================================
+// HELPER — Delete blank/ghost rows from Leaderboard
+// ============================================================
+function cleanLeaderboardGhostRows() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const lbSheet = ss.getSheetByName("Leaderboard");
+  const lastRow = lbSheet.getLastRow();
+
+  // Walk backwards so row deletion doesn't shift indices
+  for (let r = lastRow; r >= 2; r--) {
+    const nameVal = lbSheet.getRange(r, 2).getValue();
+    if (String(nameVal).trim() === "") {
+      lbSheet.deleteRow(r);
+    }
+  }
+}
+
+// ============================================================
+// FEATURE: Add New Player
+// ============================================================
+function submitNewPlayer(playerName, icon) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const gamesSheet  = ss.getSheetByName("Game Scores");
+  const lbSheet     = ss.getSheetByName("Leaderboard");
+
+  if (!playerName) throw new Error("Player name cannot be empty.");
+
+  // ── Duplicate check ───────────────────────────────────────
+  const lastCol  = gamesSheet.getLastColumn();
+  const gsRow1   = gamesSheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  if (gsRow1.includes(playerName)) throw new Error("A player with that name already exists.");
+
+  // ── Clean any ghost rows left by previous broken runs ─────
+  cleanLeaderboardGhostRows();
+  SpreadsheetApp.flush();
+
+  // ── STEP 1: Add column to Game Scores ────────────────────
+  const newPlayerCol = gamesSheet.getLastColumn() + 1;
+  gamesSheet.getRange(1, newPlayerCol).setValue(playerName);
+
+  // Find Totals row and write SUM
+  const gsData = gamesSheet.getDataRange().getValues();
+  let totalsRowNum = -1;
+  for (let i = 0; i < gsData.length; i++) {
+    if (String(gsData[i][0]).trim().toLowerCase() === 'totals') {
+      totalsRowNum = i + 1; // 1-based sheet row
+      break;
+    }
+  }
+  if (totalsRowNum > 0) {
+    const colLetter = columnToLetter(newPlayerCol);
+    gamesSheet.getRange(totalsRowNum, newPlayerCol)
+      .setFormula(`=SUM(${colLetter}2:${colLetter}${totalsRowNum - 1})`);
+  }
+
+  SpreadsheetApp.flush();
+
+  // ── STEP 2: Append new Leaderboard row ───────────────────
+  const newLbRow    = lbSheet.getLastRow() + 1;
+  const dataRowCount = newLbRow - 1; // rows 2..newLbRow are all player rows
+
+  // Helper to build the OFFSET-based player column range in Game Scores.
+  // Avoids COUNTA(A:A) which breaks when timestamps are blank post-cutoff.
+  // Instead we reference fixed rows 2 through the totalsRow-1.
+  const gsDataEnd = totalsRowNum > 0 ? totalsRowNum - 1 : 2000;
+  const gsColRange =
+    `OFFSET('Game Scores'!$A$1,1,MATCH(INDIRECT("B"&ROW()),'Game Scores'!$1:$1,0)-1,${gsDataEnd - 1},1)`;
+
+  // Col A — Title (COUNTA on col B = player name count = true total)
+  const titleFormula =
+    '=LET(rank,INDIRECT("D"&ROW()),total,COUNTA(B$2:B$9999),' +
+    'IF(rank="","Monk",' +
+    'IF(rank=1,"Messiah",' +
+    'IF(AND(rank>=2,rank<=3),"Master",' +
+    'IF(AND(rank>=4,rank<=6),"Musketeer",' +
+    'IF(AND(rank>=7,rank<=10),"Marshal",' +
+    'IF(rank=total,"Moron",' +
+    'IF(AND(rank>=total-2,rank<=total-1),"Mongrel",' +
+    'IF(AND(rank>=total-5,rank<=total-3),"Minion",' +
+    'IF(AND(rank>=total-9,rank<=total-6),"Mortal","Monk"))))))))))';
+
+  lbSheet.getRange(newLbRow, 1).setFormula(titleFormula);
+
+  // Col B — Player name (plain value)
+  lbSheet.getRange(newLbRow, 2).setValue(playerName);
+
+  // Col C — Total points
+  lbSheet.getRange(newLbRow, 3).setFormula(
+    `=IFERROR(INDIRECT("'Game Scores'!"&ADDRESS(` +
+    `MATCH("Totals",'Game Scores'!A:A,0),` +
+    `MATCH(INDIRECT("B"&ROW()),'Game Scores'!1:1,0))),0)`
+  );
+
+  // Col D — Points rank (range locked to actual player rows only)
+  for (let r = 2; r <= newLbRow; r++) {
+    lbSheet.getRange(r, 4).setFormula(
+      `=IFERROR(RANK(INDIRECT("C"&ROW()),C$2:C$${newLbRow},FALSE),"")`
+    );
+  }
+
+  // Col E — Games played: count non-blank cells (Post April 25)
+  lbSheet.getRange(newLbRow, 5).setFormula(
+    `=COUNTIFS(INDEX(Games, 0, 1), ">="&DATE(2026,4,25), INDEX(Games, 0, MATCH(INDIRECT("B"&ROW()), 'Game Scores'!$1:$1, 0)), "<>")`
+  );
+
+  // Col F — Games won (score > 0)
+  lbSheet.getRange(newLbRow, 6).setFormula(
+    `=IFERROR(COUNTIF(${gsColRange},">0"),0)`
+  );
+
+  // Col G — Games lost (score < 0)
+  lbSheet.getRange(newLbRow, 7).setFormula(
+    `=IFERROR(COUNTIF(${gsColRange},"<0"),0)`
+  );
+
+  // Col H — W/L ratio
+  lbSheet.getRange(newLbRow, 8).setFormula(
+    `=IF(INDIRECT("G"&ROW())=0,0,INDIRECT("F"&ROW())/INDIRECT("G"&ROW()))`
+  );
+
+  // Col I — W/L rank
+  for (let r = 2; r <= newLbRow; r++) {
+    lbSheet.getRange(r, 9).setFormula(
+      `=IFERROR(RANK(INDIRECT("H"&ROW()),H$2:H$${newLbRow},FALSE),"")`
+    );
+  }
+
+  // Col J — Best win
+  lbSheet.getRange(newLbRow, 10).setFormula(
+    `=IFERROR(MAX(${gsColRange}),0)`
+  );
+
+  // Col K — Worst loss
+  lbSheet.getRange(newLbRow, 11).setFormula(
+    `=IFERROR(MIN(${gsColRange}),0)`
+  );
+
+  // Col L — Icon
+  if (icon && icon.startsWith("data:image")) {
+    lbSheet.getRange(newLbRow, 12).setValue("📷");
+    lbSheet.getRange(newLbRow, 12).setNote("Image icon: " + icon.substring(0, 100) + "...");
+  } else {
+    lbSheet.getRange(newLbRow, 12).setValue(icon || "");
+  }
+
+  // Cols M–P — ELO (recalculateElo will overwrite these)
+  lbSheet.getRange(newLbRow, 13).setValue(1500); // ELO Rating
+  lbSheet.getRange(newLbRow, 14).setValue("");   // ELO Rank
+  lbSheet.getRange(newLbRow, 15).setValue(1500); // ELO Peak
+  lbSheet.getRange(newLbRow, 16).setValue(0);    // ELO Δ Last 5
+
+  // Col Q — Playoff Seed Score (IFNA catches #N/A from blank ELO rank)
+  lbSheet.getRange(newLbRow, 17).setFormula(
+    `=IFNA(INDIRECT("M"&ROW())+(INDIRECT("C"&ROW())*0.15),"")`
+  );
+
+  // ── STEP 3: Rewrite title formula on ALL rows ─────────────
+  // Fixes any rows still using the old COUNTA(D...) version
+  for (let r = 2; r <= newLbRow; r++) {
+    lbSheet.getRange(r, 1).setFormula(titleFormula);
+  }
+
+  // ── STEP 4: Rewrite Playoff Seed on ALL rows ─────────────
+  // Fixes existing rows that used IFERROR (doesn't catch #N/A)
+  for (let r = 2; r <= newLbRow; r++) {
+    lbSheet.getRange(r, 17).setFormula(
+      `=IFNA(INDIRECT("M"&ROW())+(INDIRECT("C"&ROW())*0.15),"")`
+    );
+  }
+
+  // ── STEP 5: Run ELO, sort, refresh sidebar ───────────────
+  SpreadsheetApp.flush();
+  recalculateElo();
+  sortLeaderboard();
+  showSessionSidebar();
 }
 
 // ============================================================
 // HELPER: Sort Leaderboard by Total Points descending
 // ============================================================
 function sortLeaderboard() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const leaderboardSheet = ss.getSheetByName("Leaderboard");
-  
+  const ss      = SpreadsheetApp.getActiveSpreadsheet();
+  const lbSheet = ss.getSheetByName("Leaderboard");
+  const gsSheet = ss.getSheetByName("Game Scores");
+
   SpreadsheetApp.flush();
 
-  const lastRow = leaderboardSheet.getLastRow();
-  const lastCol = leaderboardSheet.getLastColumn();
+  // ── Delete ghost rows (blank player name) before sorting ──
+  const lastRowBefore = lbSheet.getLastRow();
+  for (let r = lastRowBefore; r >= 2; r--) {
+    if (String(lbSheet.getRange(r, 2).getValue()).trim() === "") {
+      lbSheet.deleteRow(r);
+    }
+  }
+  SpreadsheetApp.flush();
 
-  if (lastRow <= 2) return;
+  // ── Build live points map from Game Scores Totals row ─────
+  const gsData = gsSheet.getDataRange().getValues();
+  let totalsRowIndex = -1;
+  for (let i = 0; i < gsData.length; i++) {
+    if (String(gsData[i][0]).trim().toLowerCase() === "totals") {
+      totalsRowIndex = i;
+      break;
+    }
+  }
+  if (totalsRowIndex === -1) return;
 
-  // Sort only the data rows (row 2 onward), by column C (Total Points) descending
-  // Column 3 = Total Points
-  leaderboardSheet
-    .getRange(2, 1, lastRow - 1, lastCol)
-    .sort({ column: 3, ascending: false });
+  const gsHeaders = gsData[0];
+  const pointsMap = {};
+  for (let c = 1; c < gsHeaders.length; c++) {
+    const name = String(gsHeaders[c] || "").trim();
+    if (name) pointsMap[name] = Number(gsData[totalsRowIndex][c]) || 0;
+  }
+
+  const lastRow     = lbSheet.getLastRow();
+  const numDataRows = lastRow - 1;
+  if (numDataRows < 1) return;
+
+  // Read cols A–Q as values
+  const values = lbSheet.getRange(2, 1, numDataRows, 17).getValues();
+
+  // Sort only rows with a player name
+  const namedIndices = values
+    .map((row, i) => ({ i, name: String(row[1] || "").trim() }))
+    .filter(x => x.name !== "")
+    .sort((a, b) => {
+      const ptA = pointsMap[a.name] !== undefined ? pointsMap[a.name] : -Infinity;
+      const ptB = pointsMap[b.name] !== undefined ? pointsMap[b.name] : -Infinity;
+      return ptB - ptA;
+    });
+
+  // Write back: name (col B), icon (col L), ELO cols M–P
+  // All formula columns use INDIRECT+ROW() so they self-update
+  const n = namedIndices.length;
+  const sortedNames = namedIndices.map(x => [values[x.i][1]]);
+  const sortedIcons = namedIndices.map(x => [values[x.i][11]]);
+  const sortedElo   = namedIndices.map(x => [
+    values[x.i][12], values[x.i][13], values[x.i][14], values[x.i][15]
+  ]);
+
+  lbSheet.getRange(2, 2,  n, 1).setValues(sortedNames);
+  lbSheet.getRange(2, 12, n, 1).setValues(sortedIcons);
+  lbSheet.getRange(2, 13, n, 4).setValues(sortedElo);
+
+  SpreadsheetApp.flush();
 }
 
 // ============================================================
