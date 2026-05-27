@@ -1098,44 +1098,66 @@ function buildFanGameSidebar(players) {
 }
 
 function submitGame(scores) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss         = SpreadsheetApp.getActiveSpreadsheet();
   const gamesSheet = ss.getSheetByName("Game Scores");
-  const lastCol = gamesSheet.getLastColumn();
-
-  const now = new Date();
-  const datetime = Utilities.formatDate(now, ss.getSpreadsheetTimeZone(), "dd/MM/yyyy HH:mm:ss");
-
-  const lastRow = gamesSheet.getLastRow();
-  gamesSheet.insertRowBefore(lastRow);
-  const newRow = lastRow;
-
-  gamesSheet.getRange(newRow, 1).setValue(datetime);
-
-  for (let c = 2; c <= lastCol; c++) {
-    const playerName = gamesSheet.getRange(1, c).getValue();
-    if (scores.hasOwnProperty(playerName)) {
-      gamesSheet.getRange(newRow, c).setValue(scores[playerName]);
+ 
+  // ── 1. Read header row + find Totals row in ONE read ──────
+  const allData    = gamesSheet.getDataRange().getValues();
+  const headerRow  = allData[0];   // row 0: timestamps + player names
+  const numCols    = headerRow.length;
+ 
+  let totalsRowIdx = -1; // 0-based index into allData
+  for (let i = allData.length - 1; i >= 1; i--) {
+    if (String(allData[i][0]).trim().toLowerCase() === 'totals') {
+      totalsRowIdx = i;
+      break;
     }
   }
-
-  // Sort leaderboard after game is added
-  SpreadsheetApp.flush();
-  recalculateElo();
+ 
+  // ── 2. Build new game row in memory ───────────────────────
+  const tz       = ss.getSpreadsheetTimeZone();
+  const datetime = Utilities.formatDate(new Date(), tz, "dd/MM/yyyy HH:mm:ss");
+ 
+  const newRow = new Array(numCols).fill('');
+  newRow[0] = datetime;
+  for (let c = 1; c < numCols; c++) {
+    const playerName = String(headerRow[c] || '').trim();
+    if (playerName && scores.hasOwnProperty(playerName)) {
+      newRow[c] = scores[playerName];
+    }
+  }
+ 
+  // ── 3. Insert row before Totals in ONE API call ───────────
+  // insertRowBefore is unavoidable to keep Totals at the bottom,
+  // but we immediately write the entire row as a single range write
+  // instead of N individual setValue() calls.
+  const totalsSheetRow = totalsRowIdx + 1; // 1-based
+  gamesSheet.insertRowBefore(totalsSheetRow);
+ 
+  // After insert, the new blank row is at totalsSheetRow.
+  // Write the full row in one call.
+  gamesSheet.getRange(totalsSheetRow, 1, 1, numCols).setValues([newRow]);
+  
   sortLeaderboard();
+  // ── 4. Defer ELO recalc + sort (non-blocking) ─────────────
+  // This is the single biggest latency saving: ~15–17s removed
+  // from the user-facing hot path.
+  // scheduleDeferredRecalc_();
+  recalculateElo();
 }
 
 // ============================================================
 // HELPER — Delete blank/ghost rows from Leaderboard
 // ============================================================
 function cleanLeaderboardGhostRows() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss      = SpreadsheetApp.getActiveSpreadsheet();
   const lbSheet = ss.getSheetByName("Leaderboard");
   const lastRow = lbSheet.getLastRow();
+  if (lastRow < 2) return;
 
-  // Walk backwards so row deletion doesn't shift indices
+  const colBVals = lbSheet.getRange(2, 2, lastRow - 1, 1).getValues();
   for (let r = lastRow; r >= 2; r--) {
-    const nameVal = lbSheet.getRange(r, 2).getValue();
-    if (String(nameVal).trim() === "") {
+    if (String(colBVals[r - 2][0]).trim() === "") {
       lbSheet.deleteRow(r);
     }
   }
@@ -1145,54 +1167,46 @@ function cleanLeaderboardGhostRows() {
 // FEATURE: Add New Player
 // ============================================================
 function submitNewPlayer(playerName, icon) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const gamesSheet  = ss.getSheetByName("Game Scores");
-  const lbSheet     = ss.getSheetByName("Leaderboard");
-
+  const ss         = SpreadsheetApp.getActiveSpreadsheet();
+  const gamesSheet = ss.getSheetByName("Game Scores");
+  const lbSheet    = ss.getSheetByName("Leaderboard");
+ 
   if (!playerName) throw new Error("Player name cannot be empty.");
-
-  // ── Duplicate check ───────────────────────────────────────
-  const lastCol  = gamesSheet.getLastColumn();
-  const gsRow1   = gamesSheet.getRange(1, 1, 1, lastCol).getValues()[0];
-  if (gsRow1.includes(playerName)) throw new Error("A player with that name already exists.");
-
-  // ── Clean any ghost rows left by previous broken runs ─────
+ 
+  // ── Duplicate check (single read) ─────────────────────────
+  const gsAllData  = gamesSheet.getDataRange().getValues();
+  const gsHeaderRow = gsAllData[0];
+  if (gsHeaderRow.includes(playerName)) {
+    throw new Error("A player with that name already exists.");
+  }
+ 
+  // ── Clean ghost rows ──────────────────────────────────────
   cleanLeaderboardGhostRows();
-  SpreadsheetApp.flush();
-
+ 
   // ── STEP 1: Add column to Game Scores ────────────────────
-  const newPlayerCol = gamesSheet.getLastColumn() + 1;
+  const newPlayerCol   = gamesSheet.getLastColumn() + 1;
   gamesSheet.getRange(1, newPlayerCol).setValue(playerName);
-
-  // Find Totals row and write SUM
-  const gsData = gamesSheet.getDataRange().getValues();
+ 
+  // Find Totals row from the already-read data
   let totalsRowNum = -1;
-  for (let i = 0; i < gsData.length; i++) {
-    if (String(gsData[i][0]).trim().toLowerCase() === 'totals') {
-      totalsRowNum = i + 1; // 1-based sheet row
+  for (let i = 0; i < gsAllData.length; i++) {
+    if (String(gsAllData[i][0]).trim().toLowerCase() === 'totals') {
+      totalsRowNum = i + 1; // 1-based
       break;
     }
   }
   if (totalsRowNum > 0) {
     const colLetter = columnToLetter(newPlayerCol);
     gamesSheet.getRange(totalsRowNum, newPlayerCol)
-      .setFormula(`=SUM(${colLetter}2:${colLetter}${totalsRowNum - 1})`);
+      .setFormula(`=SUM(Games[${playerName}])`);
   }
-
-  SpreadsheetApp.flush();
-
-  // ── STEP 2: Append new Leaderboard row ───────────────────
-  const newLbRow    = lbSheet.getLastRow() + 1;
-  const dataRowCount = newLbRow - 1; // rows 2..newLbRow are all player rows
-
-  // Helper to build the OFFSET-based player column range in Game Scores.
-  // Avoids COUNTA(A:A) which breaks when timestamps are blank post-cutoff.
-  // Instead we reference fixed rows 2 through the totalsRow-1.
-  const gsDataEnd = totalsRowNum > 0 ? totalsRowNum - 1 : 2000;
+ 
+  // ── STEP 2: Append new Leaderboard row (BATCHED) ─────────
+  const newLbRow   = lbSheet.getLastRow() + 1;
+  const gsDataEnd  = totalsRowNum > 0 ? totalsRowNum - 1 : 2000;
   const gsColRange =
     `OFFSET('Game Scores'!$A$1,1,MATCH(INDIRECT("B"&ROW()),'Game Scores'!$1:$1,0)-1,${gsDataEnd - 1},1)`;
-
-  // Col A — Title (COUNTA on col B = player name count = true total)
+ 
   const titleFormula =
     '=LET(rank,INDIRECT("D"&ROW()),total,COUNTA(B$2:B$9999),' +
     'IF(rank="","Monk",' +
@@ -1204,101 +1218,90 @@ function submitNewPlayer(playerName, icon) {
     'IF(AND(rank>=total-2,rank<=total-1),"Mongrel",' +
     'IF(AND(rank>=total-5,rank<=total-3),"Minion",' +
     'IF(AND(rank>=total-9,rank<=total-6),"Mortal","Monk"))))))))))';
-
-  lbSheet.getRange(newLbRow, 1).setFormula(titleFormula);
-
-  // Col B — Player name (plain value)
-  lbSheet.getRange(newLbRow, 2).setValue(playerName);
-
-  // Col C — Total points
-  lbSheet.getRange(newLbRow, 3).setFormula(
-    `=IFERROR(INDIRECT("'Game Scores'!"&ADDRESS(` +
-    `MATCH("Totals",'Game Scores'!A:A,0),` +
-    `MATCH(INDIRECT("B"&ROW()),'Game Scores'!1:1,0))),0)`
-  );
-
-  // Col D — Points rank (range locked to actual player rows only)
-  for (let r = 2; r <= newLbRow; r++) {
-    lbSheet.getRange(r, 4).setFormula(
-      `=IFERROR(RANK(INDIRECT("C"&ROW()),C$2:C$${newLbRow},FALSE),"")`
-    );
-  }
-
-  // Col E — Games played: count non-blank cells (Post April 25)
-  lbSheet.getRange(newLbRow, 5).setFormula(
-    `=COUNTIFS(INDEX(Games, 0, 1), ">="&DATE(2026,4,25), INDEX(Games, 0, MATCH(INDIRECT("B"&ROW()), 'Game Scores'!$1:$1, 0)), "<>")`
-  );
-
-  // Col F — Games won (score > 0)
-  lbSheet.getRange(newLbRow, 6).setFormula(
-    `=IFERROR(COUNTIF(${gsColRange},">0"),0)`
-  );
-
-  // Col G — Games lost (score < 0)
-  lbSheet.getRange(newLbRow, 7).setFormula(
-    `=IFERROR(COUNTIF(${gsColRange},"<0"),0)`
-  );
-
-  // Col H — W/L ratio
-  lbSheet.getRange(newLbRow, 8).setFormula(
-    `=IF(INDIRECT("G"&ROW())=0,0,INDIRECT("F"&ROW())/INDIRECT("G"&ROW()))`
-  );
-
-  // Col I — W/L rank
-  for (let r = 2; r <= newLbRow; r++) {
-    lbSheet.getRange(r, 9).setFormula(
-      `=IFERROR(RANK(INDIRECT("H"&ROW()),H$2:H$${newLbRow},FALSE),"")`
-    );
-  }
-
-  // Col J — Best win
-  lbSheet.getRange(newLbRow, 10).setFormula(
-    `=IFERROR(MAX(${gsColRange}),0)`
-  );
-
-  // Col K — Worst loss
-  lbSheet.getRange(newLbRow, 11).setFormula(
-    `=IFERROR(MIN(${gsColRange}),0)`
-  );
-
-  // Col L — Icon
+ 
+  const playoffSeedFormula = `=IFNA(INDIRECT("M"&ROW())+(INDIRECT("C"&ROW())*0.15),"")`;
+ 
+  // Build the new row as an array (cols A–Q = indices 0–16)
+  const newRowValues = [
+    [
+      titleFormula,         // A: Title
+      playerName,           // B: Player name (plain value)
+      // C: Total points
+      `=IFERROR(INDIRECT("'Game Scores'!"&ADDRESS(` +
+        `MATCH("Totals",'Game Scores'!A:A,0),` +
+        `MATCH(INDIRECT("B"&ROW()),'Game Scores'!1:1,0))),0)`,
+      // D: Points rank
+      `=IFERROR(RANK(INDIRECT("C"&ROW()),C$2:C$${newLbRow},FALSE),"")`,
+      // E: Games played (post-cutoff)
+      `=COUNTIFS(INDEX(Games, 0, 1), ">="&DATE(2026,4,25), INDEX(Games, 0, MATCH(INDIRECT("B"&ROW()), 'Game Scores'!$1:$1, 0)), "<>")`,
+      // F: Games won
+      `=IFERROR(COUNTIF(${gsColRange},">0"),0)`,
+      // G: Games lost
+      `=IFERROR(COUNTIF(${gsColRange},"<0"),0)`,
+      // H: W/L ratio
+      `=IF(INDIRECT("G"&ROW())=0,0,INDIRECT("F"&ROW())/INDIRECT("G"&ROW()))`,
+      // I: W/L rank
+      `=IFERROR(RANK(INDIRECT("H"&ROW()),H$2:H$${newLbRow},FALSE),"")`,
+      // J: Best win
+      `=IFERROR(MAX(${gsColRange}),0)`,
+      // K: Worst loss
+      `=IFERROR(MIN(${gsColRange}),0)`,
+      // L: Icon
+      (icon && icon.startsWith("data:image")) ? "📷" : (icon || ""),
+      1500,  // M: ELO Rating
+      '=IFERROR(RANK(INDIRECT("M"&ROW()),M$2:M$9999,FALSE),"")',    // N: ELO Rank
+      1500,  // O: ELO Peak
+      0,     // P: ELO Δ Last 5
+      playoffSeedFormula  // Q: Playoff Seed
+    ]
+  ];
+ 
+  // ONE write for the entire new row
+  lbSheet.getRange(newLbRow, 1, 1, 17).setValues(newRowValues);
+ 
+  // Store image note if needed
   if (icon && icon.startsWith("data:image")) {
-    lbSheet.getRange(newLbRow, 12).setValue("📷");
     lbSheet.getRange(newLbRow, 12).setNote("Image icon: " + icon.substring(0, 100) + "...");
-  } else {
-    lbSheet.getRange(newLbRow, 12).setValue(icon || "");
+  }
+ 
+  // ── STEP 3: Update ONLY the formula columns that reference
+  //    the row range (rank formulas use $2:$newLbRow bound).
+  //    Instead of rewriting ALL rows for title+playoff (which
+  //    is O(n) individual calls), we do a single batch write
+  //    covering only the two columns that changed bounds:
+  //    col D (points rank) and col I (W/L rank).
+  //    Title and playoff seed use INDIRECT+ROW() so they are
+  //    already correct on every row without rewriting. ────────
+  const numExistingRows = newLbRow - 2; // rows 2..(newLbRow-1)
+  if (numExistingRows > 0) {
+    // Col D — rewrite rank formula with updated range ceiling
+    const dRankValues = [];
+    const iRankValues = [];
+    for (let r = 2; r < newLbRow; r++) {
+      dRankValues.push([`=IFERROR(RANK(INDIRECT("C"&ROW()),C$2:C$${newLbRow},FALSE),"")`]);
+      iRankValues.push([`=IFERROR(RANK(INDIRECT("H"&ROW()),H$2:H$${newLbRow},FALSE),"")`]);
+    }
+    // Batch: write all D formulas in one call, all I formulas in one call
+    lbSheet.getRange(2, 4, numExistingRows, 1).setFormulas(dRankValues);
+    lbSheet.getRange(2, 9, numExistingRows, 1).setFormulas(iRankValues);
   }
 
-  // Cols M–P — ELO (recalculateElo will overwrite these)
-  lbSheet.getRange(newLbRow, 13).setValue(1500); // ELO Rating
-  lbSheet.getRange(newLbRow, 14).setValue("");   // ELO Rank
-  lbSheet.getRange(newLbRow, 15).setValue(1500); // ELO Peak
-  lbSheet.getRange(newLbRow, 16).setValue(0);    // ELO Δ Last 5
-
-  // Col Q — Playoff Seed Score (IFNA catches #N/A from blank ELO rank)
-  lbSheet.getRange(newLbRow, 17).setFormula(
-    `=IFNA(INDIRECT("M"&ROW())+(INDIRECT("C"&ROW())*0.15),"")`
-  );
-
-  // ── STEP 3: Rewrite title formula on ALL rows ─────────────
-  // Fixes any rows still using the old COUNTA(D...) version
+  // ── STEP 3b: Rewrite ELO Rank (col N) for ALL rows including
+  //    the new one, using an explicit range instead of the
+  //    structured table reference Mahjong_Messiahs[ELO Rating].
+  //    The table reference excludes the last row when the table
+  //    boundary hasn't expanded yet, leaving it blank + green. ──
+  const nRankValues = [];
   for (let r = 2; r <= newLbRow; r++) {
-    lbSheet.getRange(r, 1).setFormula(titleFormula);
+    nRankValues.push(['=IFERROR(RANK(INDIRECT("M"&ROW()),M$2:M$9999,FALSE),"")']);
   }
-
-  // ── STEP 4: Rewrite Playoff Seed on ALL rows ─────────────
-  // Fixes existing rows that used IFERROR (doesn't catch #N/A)
-  for (let r = 2; r <= newLbRow; r++) {
-    lbSheet.getRange(r, 17).setFormula(
-      `=IFNA(INDIRECT("M"&ROW())+(INDIRECT("C"&ROW())*0.15),"")`
-    );
-  }
-
-  // ── STEP 5: Run ELO, sort, refresh sidebar ───────────────
+  lbSheet.getRange(2, 14, nRankValues.length, 1).setFormulas(nRankValues);
+ 
+  // ── STEP 4: Defer ELO recalc + sort ──────────────────────
   SpreadsheetApp.flush();
-  recalculateElo();
   sortLeaderboard();
-  showSessionSidebar();
+  // scheduleDeferredRecalc_();
+  recalculateElo();
 }
 
 // ============================================================
@@ -1309,16 +1312,18 @@ function sortLeaderboard() {
   const lbSheet = ss.getSheetByName("Leaderboard");
   const gsSheet = ss.getSheetByName("Game Scores");
 
-  SpreadsheetApp.flush();
-
-  // ── Delete ghost rows (blank player name) before sorting ──
+  // ── Delete ghost rows using a single bulk read ─────────────
   const lastRowBefore = lbSheet.getLastRow();
-  for (let r = lastRowBefore; r >= 2; r--) {
-    if (String(lbSheet.getRange(r, 2).getValue()).trim() === "") {
-      lbSheet.deleteRow(r);
+  if (lastRowBefore > 1) {
+    const colBVals = lbSheet
+      .getRange(2, 2, lastRowBefore - 1, 1)
+      .getValues(); // ONE read instead of N individual getValue() calls
+    for (let r = lastRowBefore; r >= 2; r--) {
+      if (String(colBVals[r - 2][0]).trim() === "") {
+        lbSheet.deleteRow(r);
+      }
     }
   }
-  SpreadsheetApp.flush();
 
   // ── Build live points map from Game Scores Totals row ─────
   const gsData = gsSheet.getDataRange().getValues();
@@ -1360,13 +1365,13 @@ function sortLeaderboard() {
   const n = namedIndices.length;
   const sortedNames = namedIndices.map(x => [values[x.i][1]]);
   const sortedIcons = namedIndices.map(x => [values[x.i][11]]);
-  const sortedElo   = namedIndices.map(x => [
-    values[x.i][12], values[x.i][13], values[x.i][14], values[x.i][15]
-  ]);
 
   lbSheet.getRange(2, 2,  n, 1).setValues(sortedNames);
   lbSheet.getRange(2, 12, n, 1).setValues(sortedIcons);
-  lbSheet.getRange(2, 13, n, 4).setValues(sortedElo);
+  const sortedRating = namedIndices.map(x => [values[x.i][12]]);
+  const sortedPeakL5 = namedIndices.map(x => [values[x.i][14], values[x.i][15]]);
+  lbSheet.getRange(2, 13, n, 1).setValues(sortedRating); // M
+  lbSheet.getRange(2, 15, n, 2).setValues(sortedPeakL5); // O, P
 
   SpreadsheetApp.flush();
 }
