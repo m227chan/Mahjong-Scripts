@@ -649,20 +649,45 @@ function drawEloChart(selected) {
     return;
   }
 
-  // Filter ELO data by date range using allData timestamps as anchors
-  // Map the slider range to ELO data indices by matching timestamps
-  const startTime = allData[sliderStart] ? allData[sliderStart].time : null;
-  const endTime   = allData[sliderEnd]   ? allData[sliderEnd].time   : null;
+// Filter ELO data by matching timestamps against the slider's selected game range.
+  // ELO history starts on Apr 25 2026 — earlier slider positions simply show all ELO data.
+  // We compare the string labels; if allData has no overlap, fall back to full ELO dataset.
+  const startLabel = allData[sliderStart] ? allData[sliderStart].time : null;
+  const endLabel   = allData[sliderEnd]   ? allData[sliderEnd].time   : null;
 
-  // Find ELO rows within the date window (by index proportion if no exact match)
-  const eloStartIdx = 0;
-  const eloEndIdx   = eloData.length - 1;
+  // Build a set of game timestamps that fall within the slider window for fast lookup
+  const windowTimes = new Set(
+    allData.slice(sliderStart, sliderEnd + 1).map(d => d.time)
+  );
 
-  // Use full ELO data but let user filter via date — approximate by proportional slice
-  const proportion = totalPoints > 0 ? sliderStart / totalPoints : 0;
-  const endProp    = totalPoints > 0 ? sliderEnd   / totalPoints : 1;
-  const eloS = Math.floor(proportion * eloEndIdx);
-  const eloE = Math.ceil(endProp    * eloEndIdx);
+  // Find the first ELO row whose time is inside the window (or after it starts)
+  let eloS = 0;
+  if (startLabel) {
+    // Walk forward until we find an ELO entry that is >= the slider start time
+    // Since both arrays are chronological strings we compare lexicographically
+    for (let i = 0; i < eloData.length; i++) {
+      if (eloData[i].time >= startLabel) { eloS = i; break; }
+      eloS = eloData.length; // slider start is beyond all ELO data
+    }
+  }
+
+  // Find the last ELO row whose time is inside the window
+  let eloE = eloData.length - 1;
+  if (endLabel) {
+    for (let i = eloData.length - 1; i >= 0; i--) {
+      if (eloData[i].time <= endLabel) { eloE = i; break; }
+      eloE = -1; // slider end is before all ELO data
+    }
+  }
+
+  // If the slider window is entirely before ELO history began, show nothing
+  if (eloS > eloE) {
+    if (eloChart) eloChart.destroy();
+    document.getElementById('eloStats').innerHTML =
+      '<div class="stat-item" style="color:#a0aec0;">⏳ No ELO data in selected range — ELO tracking begins Apr 25, 2026.</div>';
+    return;
+  }
+
   const filteredElo = eloData.slice(eloS, eloE + 1);
 
   if (!filteredElo.length) return;
