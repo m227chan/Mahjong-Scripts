@@ -55,6 +55,111 @@ function runDeferredRecalc() {
   sortLeaderboard();
 }
 
+/**
+ * Reads persisted ELO state, applies one game, writes back only
+ * the affected players. O(P) reads + O(1) game processing + O(P) writes
+ * where P = players at the table (always 4).
+ */
+function applyIncrementalElo_(scores) {
+  const ss        = SpreadsheetApp.getActiveSpreadsheet();
+  const stateSheet = ss.getSheetByName('ELO State');
+  const lbSheet    = ss.getSheetByName('Leaderboard');
+
+  // ── Read full ELO state in one shot ───────────────────────
+  const stateData = stateSheet.getDataRange().getValues();
+  // Cols: Player | Rating | GamesPlayed | Peak | Last5_1..5
+  const stateMap = {}; // name → { rowIndex, rating, gamesPlayed, peak, last5[] }
+  for (let i = 1; i < stateData.length; i++) {
+    const row = stateData[i];
+    const name = String(row[0] || '').trim();
+    if (!name) continue;
+    stateMap[name] = {
+      rowIndex:    i + 1, // 1-based sheet row
+      rating:      Number(row[1]),
+      gamesPlayed: Number(row[2]),
+      peak:        Number(row[3]),
+      last5:       [row[4], row[5], row[6], row[7], row[8]]
+                     .map(Number)
+                     .filter((_, idx) => row[idx + 4] !== '')
+    };
+  }
+
+  // ── Participants in this game ──────────────────────────────
+  const participants = Object.entries(scores).map(([name, score]) => {
+    if (!stateMap[name]) {
+      // New player not yet in ELO State — seed them
+      stateMap[name] = { rowIndex: null, rating: ELO_STARTING_RATING,
+                         gamesPlayed: 0, peak: ELO_STARTING_RATING, last5: [] };
+    }
+    return { name, score, state: stateMap[name] };
+  });
+
+  // ── Pairwise ELO delta (same logic as recalculateElo) ─────
+  const deltas = {};
+  participants.forEach(p => deltas[p.name] = 0);
+
+  for (let i = 0; i < participants.length; i++) {
+    for (let j = i + 1; j < participants.length; j++) {
+      const pA = participants[i], pB = participants[j];
+      const sA = pA.state, sB = pB.state;
+      const expA   = 1 / (1 + Math.pow(10, (sB.rating - sA.rating) / 400));
+      const actA   = getActual(pA.score, pB.score);
+      const matchK = (getK(sA.gamesPlayed) + getK(sB.gamesPlayed)) / 2;
+      const mult   = getSpreadMultiplier(pA.score, pB.score);
+      deltas[pA.name] += matchK * mult * (actA - expA);
+      deltas[pB.name] += matchK * mult * ((1 - actA) - (1 - expA));
+    }
+  }
+
+  // ── Apply deltas + update state ───────────────────────────
+  participants.forEach(({ name, state }) => {
+    const delta = deltas[name];
+    state.rating      += delta;
+    state.gamesPlayed += 1;
+    if (state.rating > state.peak) state.peak = state.rating;
+    state.last5.push(delta);
+    if (state.last5.length > 5) state.last5.shift();
+  });
+
+  // ── Batch-write ELO State rows (only 4 rows) ──────────────
+  // Build a map of all state rows to write back
+  // For new players, append; for existing, update in place
+  const newStateRows = [];
+  participants.forEach(({ name, state }) => {
+    const padded = [...state.last5];
+    while (padded.length < 5) padded.unshift('');
+    const rowData = [name, Math.round(state.rating), state.gamesPlayed,
+                     Math.round(state.peak), ...padded];
+    if (state.rowIndex) {
+      stateSheet.getRange(state.rowIndex, 1, 1, 9).setValues([rowData]);
+    } else {
+      newStateRows.push(rowData);
+    }
+  });
+  if (newStateRows.length) {
+    const lastRow = stateSheet.getLastRow();
+    stateSheet.getRange(lastRow + 1, 1, newStateRows.length, 9)
+              .setValues(newStateRows);
+  }
+
+  // ── Update Leaderboard ELO cols for only these 4 players ──
+  const lbData = lbSheet.getDataRange().getValues();
+  participants.forEach(({ name, state }) => {
+    const lbRow = lbData.findIndex((r, i) => i > 0 && String(r[1]).trim() === name);
+    if (lbRow === -1) return;
+    const sheetRow = lbRow + 1;
+    const last5Sum = state.last5.reduce((a, b) => a + b, 0);
+    lbSheet.getRange(sheetRow, ELO_COL_RATING).setValue(Math.round(state.rating));
+    lbSheet.getRange(sheetRow, ELO_COL_PEAK).setValue(Math.round(state.peak));
+    lbSheet.getRange(sheetRow, ELO_COL_LAST5).setValue(Math.round(last5Sum));
+  });
+
+  // ── Re-sort leaderboard (still needed) ────────────────────
+  sortLeaderboard();
+
+  return { stateMap, allPlayerNames: Object.keys(stateMap) };
+}
+
 // ============================================================
 // MAIN — Recalculate all ELO ratings from scratch
 // ============================================================
