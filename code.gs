@@ -1129,8 +1129,11 @@ function submitGame(scores) {
   gamesSheet.insertRowBefore(totalsSheetRow);
   gamesSheet.getRange(totalsSheetRow, 1, 1, numCols).setValues([newRow]);
  
-  // ── 3. Incremental ELO (replaces full recalculateElo) ─────
-  applyIncrementalElo_(scores);
+  // ── 3. Incremental ELO ────────────────────────────────────
+  const updatedState = applyIncrementalElo_(scores);
+
+  // ── 4. Append one row to ELO History ─────────────────────
+  appendEloHistoryRow_(new Date(), updatedState.stateMap, updatedState.allPlayerNames);
 }
 
 // ============================================================
@@ -1287,7 +1290,20 @@ function submitNewPlayer(playerName, icon) {
   // ── STEP 4: Defer ELO recalc + sort ──────────────────────
   SpreadsheetApp.flush();
   sortLeaderboard();
-  // scheduleDeferredRecalc_();
+
+  // ── Add new column to ELO History for the new player ─────
+  const histSheet = ss.getSheetByName('ELO History');
+  if (histSheet) {
+    const newEloCol = histSheet.getLastColumn() + 1;
+    histSheet.getRange(1, newEloCol).setValue(playerName);
+    // Backfill all existing rows with 1500 (starting rating)
+    const numHistRows = histSheet.getLastRow() - 1;
+    if (numHistRows > 0) {
+      const backfill = Array.from({ length: numHistRows }, () => [ELO_STARTING_RATING]);
+      histSheet.getRange(2, newEloCol, numHistRows, 1).setValues(backfill);
+    }
+  }
+
   recalculateElo();
   showSessionSidebar();
 }
@@ -1581,16 +1597,21 @@ function buildEloHistory() {
 // ============================================================
 // ELO HISTORY — Append one row (called after each new game)
 // ============================================================
-function appendEloHistoryRow_(gameDate, eloStateSnapshot, allPlayerNames) {
+function appendEloHistoryRow_(gameDate, stateMap, allPlayerNames) {
   const ss        = SpreadsheetApp.getActiveSpreadsheet();
   const histSheet = ss.getSheetByName('ELO History');
-  if (!histSheet) return; // Sheet not created yet — run buildEloHistory() first
+  if (!histSheet) return; // Run buildEloHistory() first to create the sheet
+
+  // Read the header row to respect whatever column order already exists
+  const headerRow = histSheet.getRange(1, 1, 1, histSheet.getLastColumn()).getValues()[0];
+  const orderedPlayers = headerRow.slice(1).map(String); // skip the Datetime col
+
+  const snap = [gameDate];
+  orderedPlayers.forEach(name => {
+    snap.push(stateMap[name] ? Math.round(stateMap[name].rating) : 1500);
+  });
 
   const lastRow = histSheet.getLastRow();
-  const snap = [gameDate];
-  allPlayerNames.forEach(name => {
-    snap.push(eloStateSnapshot[name] ? Math.round(eloStateSnapshot[name].rating) : 1500);
-  });
   histSheet.getRange(lastRow + 1, 1, 1, snap.length).setValues([snap]);
 }
 
