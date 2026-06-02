@@ -9,309 +9,792 @@
   <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
+
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: #f0f2f7;
       color: #2d3748;
       overflow-x: hidden;
     }
+
+    /* ── Header ── */
     .header {
       background: rgba(255,255,255,0.98);
-      padding: 24px 32px;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      padding: 20px 28px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
       border-bottom: 3px solid #667eea;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
     }
-    .header h1 { font-size: 28px; font-weight: 700; color: #1a202c; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; }
-    .header .subtitle { font-size: 14px; color: #718096; }
+    .header h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #1a202c;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .header .subtitle { font-size: 13px; color: #718096; margin-top: 2px; }
+
+    /* ── Controls ── */
     .controls-section {
-      background: rgba(255,255,255,0.95);
-      padding: 24px 32px;
-      margin: 20px 32px;
+      background: #fff;
+      padding: 20px 28px;
+      margin: 16px 28px;
       border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      box-shadow: 0 1px 6px rgba(0,0,0,0.07);
+      border: 1px solid #e8ecf2;
     }
-    .control-group { margin-bottom: 24px; }
+
+    .control-group { margin-bottom: 20px; }
     .control-group:last-child { margin-bottom: 0; }
-    .control-group label { display: block; font-weight: 700; font-size: 13px; color: #4a5568; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
-    .date-slider-container { background: #ffffff; padding: 20px 24px; border-radius: 10px; border: 1px solid #e2e8f0; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); }
-    .date-labels { display: flex; justify-content: space-between; margin-bottom: 24px; }
-    .date-label-badge { display: flex; align-items: center; gap: 8px; background: #f8fafc; padding: 8px 16px; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 13px; color: #4a5568; }
-    .date-label-badge strong { color: #2d3748; font-size: 14px; font-weight: 700; }
-    .slider-wrapper { position: relative; height: 40px; }
-    .slider-track-bg, .slider-track, .range-slider { position: absolute; top: 50%; transform: translateY(-50%); }
-    .slider-track-bg { width: 100%; height: 8px; background: #e2e8f0; border-radius: 4px; z-index: 1; }
-    .slider-track { height: 8px; background: linear-gradient(90deg, #667eea, #764ba2); border-radius: 4px; z-index: 2; }
-    .range-slider { width: 100%; height: 8px; background: transparent; pointer-events: none; -webkit-appearance: none; appearance: none; z-index: 3; margin: 0; outline: none; }
-    .range-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 24px; height: 24px; border-radius: 50%; background: #ffffff; cursor: pointer; pointer-events: all; border: 3px solid #667eea; box-shadow: 0 2px 6px rgba(0,0,0,0.15); transition: transform 0.1s ease, box-shadow 0.1s ease; }
-    .range-slider::-moz-range-thumb { width: 24px; height: 24px; border-radius: 50%; background: #ffffff; cursor: pointer; pointer-events: all; border: 3px solid #667eea; box-shadow: 0 2px 6px rgba(0,0,0,0.15); }
-    .range-slider::-webkit-slider-thumb:hover { transform: scale(1.15); box-shadow: 0 3px 8px rgba(102,126,234,0.3); }
+    .control-label {
+      display: block;
+      font-weight: 700;
+      font-size: 11px;
+      color: #718096;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+
+    /* ── Custom dual range slider ── */
+    .slider-container {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 16px 20px;
+    }
+    .slider-date-labels {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .date-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 12px;
+      color: #4a5568;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .date-badge strong { color: #2d3748; font-size: 13px; }
+
+    /* Custom slider track area */
+    .dual-slider-wrap {
+      position: relative;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+    }
+    .slider-track-bg {
+      position: absolute;
+      left: 0; right: 0;
+      height: 6px;
+      background: #e2e8f0;
+      border-radius: 3px;
+      z-index: 1;
+    }
+    .slider-track-fill {
+      position: absolute;
+      height: 6px;
+      background: linear-gradient(90deg, #667eea, #764ba2);
+      border-radius: 3px;
+      z-index: 2;
+      pointer-events: none;
+    }
+    .slider-thumb {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      background: #fff;
+      border: 3px solid #667eea;
+      border-radius: 50%;
+      box-shadow: 0 2px 6px rgba(102,126,234,0.3);
+      z-index: 4;
+      transform: translateX(-50%);
+      cursor: grab;
+      transition: box-shadow 0.15s, transform 0.1s;
+    }
+    .slider-thumb:hover {
+      box-shadow: 0 3px 10px rgba(102,126,234,0.45);
+    }
+    .slider-thumb.dragging {
+      cursor: grabbing;
+      transform: translateX(-50%) scale(1.15);
+      box-shadow: 0 4px 14px rgba(102,126,234,0.5);
+      z-index: 5;
+    }
+
+    /* ── Select2 overrides ── */
     .select2-container { width: 100% !important; }
-    .select2-container--default .select2-selection--multiple { border: 2px solid #e2e8f0; border-radius: 8px; min-height: 48px; padding: 6px; transition: all 0.2s; }
-    .select2-container--default.select2-container--focus .select2-selection--multiple { border-color: #667eea; box-shadow: 0 0 0 3px rgba(102,126,234,0.1); }
-    .select2-container--default .select2-selection--multiple .select2-selection__choice { background-color: #667eea; border: none; color: white; padding: 6px 12px; border-radius: 6px; font-size: 13px; font-weight: 500; margin: 4px; }
-    .select2-container--default .select2-selection--multiple .select2-selection__choice__remove { color: rgba(255,255,255,0.8); margin-right: 8px; font-weight: bold; }
-    .select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover { color: white; background: transparent; }
-    .button-group { display: flex; gap: 12px; margin-top: 16px; }
-    .btn { padding: 12px 24px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; text-transform: uppercase; letter-spacing: 0.5px; }
-    .btn-primary { background: #667eea; color: white; }
+    .select2-container--default .select2-selection--multiple {
+      border: 1.5px solid #e2e8f0;
+      border-radius: 8px;
+      min-height: 44px;
+      padding: 4px 6px;
+      transition: border-color 0.2s;
+    }
+    .select2-container--default.select2-container--focus .select2-selection--multiple {
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
+    }
+    .select2-container--default .select2-selection--multiple .select2-selection__choice {
+      background: #667eea;
+      border: none;
+      color: #fff;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      margin: 3px;
+    }
+    .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+      color: rgba(255,255,255,0.75);
+      margin-right: 6px;
+    }
+    .select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover {
+      color: #fff;
+      background: transparent;
+    }
+
+    /* ── Session badge ── */
+    .session-note {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: #ebf8f0;
+      color: #276749;
+      border: 1px solid #9ae6b4;
+      border-radius: 20px;
+      padding: 3px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    /* ── Button row ── */
+    .button-group {
+      display: flex;
+      gap: 8px;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      padding: 9px 18px;
+      border: none;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.18s;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .btn-primary { background: #667eea; color: #fff; }
     .btn-primary:hover { background: #5568d3; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(102,126,234,0.3); }
-    .btn-secondary { background: #e2e8f0; color: #4a5568; }
-    .btn-secondary:hover { background: #cbd5e0; color: #2d3748; }
-    .charts-grid { display: grid; grid-template-columns: 1fr; gap: 24px; padding: 0 32px 32px; }
-    .chart-card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); transition: transform 0.2s, box-shadow 0.2s; }
-    .chart-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.15); }
-    .chart-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 2px solid #f7fafc; }
-    .chart-header h2 { font-size: 20px; font-weight: 700; color: #2d3748; }
-    .chart-icon { font-size: 24px; }
-    .chart-container { position: relative; height: 450px; width: 100%; }
-    .loading { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 300px; color: #718096; }
-    .loading-spinner { width: 50px; height: 50px; border: 4px solid #e2e8f0; border-top-color: #667eea; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 16px; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .stats-bar { display: flex; gap: 24px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e2e8f0; font-size: 14px; color: #718096; flex-wrap: wrap; }
-    .stat-item { display: flex; align-items: center; gap: 8px; }
+    .btn-secondary { background: #edf2f7; color: #4a5568; }
+    .btn-secondary:hover { background: #e2e8f0; }
+
+    /* ── Charts grid ── */
+    .charts-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      padding: 0 28px 28px;
+    }
+
+    .chart-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.07);
+      border: 1px solid #e8ecf2;
+      transition: box-shadow 0.2s;
+    }
+    .chart-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+
+    .chart-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 18px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid #f0f4f8;
+    }
+    .chart-header-left h2 {
+      font-size: 16px;
+      font-weight: 700;
+      color: #1a202c;
+    }
+    .chart-header-left p {
+      font-size: 12px;
+      color: #a0aec0;
+      margin-top: 3px;
+    }
+    .chart-tag {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: #ebf4ff;
+      color: #3182ce;
+    }
+    .chart-tag.elo { background: #faf0ff; color: #7c3aed; }
+    .chart-tag.rank { background: #fff8eb; color: #c05621; }
+
+    .chart-container {
+      position: relative;
+      height: 420px;
+      width: 100%;
+    }
+
+    /* ── Stats bar ── */
+    .stats-bar {
+      display: flex;
+      gap: 20px;
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px solid #f0f4f8;
+      font-size: 12px;
+      color: #718096;
+      flex-wrap: wrap;
+    }
+    .stat-item { display: flex; align-items: center; gap: 6px; }
     .stat-value { font-weight: 700; color: #2d3748; }
+
+    /* ── Loading ── */
+    .loading-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 60px;
+      text-align: center;
+      color: #a0aec0;
+      border: 1px solid #e8ecf2;
+    }
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #e2e8f0;
+      border-top-color: #667eea;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 14px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
+
 <div class="header">
-  <h1>🀄 Mahjong Club Dashboard</h1>
-  <p class="subtitle">Track player performance and rankings over time</p>
+  <div>
+    <h1>🀄 Mahjong Dashboard</h1>
+    <div class="subtitle">Performance tracking &amp; ELO ratings</div>
+  </div>
 </div>
 
+<!-- Controls -->
 <div class="controls-section">
   <div class="control-group">
-    <label for="playerSelect">Select Players to Display</label>
+    <label class="control-label">Players</label>
+    <div class="session-note" id="sessionNote" style="display:none">
+      🃏 Showing tonight's session players
+    </div>
     <select id="playerSelect" multiple="multiple"></select>
   </div>
+
   <div class="control-group">
-    <label>Date Range Filter</label>
-    <div class="date-slider-container">
-      <div class="date-labels">
-        <span id="startDateLabel" class="date-label-badge">Loading...</span>
-        <span id="endDateLabel" class="date-label-badge">Loading...</span>
+    <label class="control-label">Date Range</label>
+    <div class="slider-container">
+      <div class="slider-date-labels">
+        <div class="date-badge" id="startDateLabel">Loading…</div>
+        <div class="date-badge" id="endDateLabel">Loading…</div>
       </div>
-      <div class="slider-wrapper">
+      <div class="dual-slider-wrap" id="sliderWrap">
         <div class="slider-track-bg"></div>
-        <div class="slider-track" id="sliderTrack"></div>
-        <input type="range" id="startSlider" min="0" max="100" value="0" class="range-slider">
-        <input type="range" id="endSlider" min="0" max="100" value="100" class="range-slider">
+        <div class="slider-track-fill" id="sliderFill"></div>
+        <div class="slider-thumb" id="thumbLeft" data-thumb="left"></div>
+        <div class="slider-thumb" id="thumbRight" data-thumb="right"></div>
       </div>
     </div>
   </div>
+
   <div class="button-group">
     <button class="btn btn-primary" onclick="updateCharts()">Update Charts</button>
     <button class="btn btn-secondary" onclick="selectAll()">Select All</button>
     <button class="btn btn-secondary" onclick="clearAll()">Clear All</button>
-    <button class="btn btn-secondary" onclick="resetDateRange()">Reset Date Range</button>
+    <button class="btn btn-secondary" onclick="resetSessionPlayers()">Session Players</button>
+    <button class="btn btn-secondary" onclick="resetDateRange()">Reset Range</button>
   </div>
 </div>
 
-<div class="charts-grid"></div>
+<!-- Charts -->
+<div class="charts-grid" id="chartsGrid">
+  <div class="loading-card">
+    <div class="loading-spinner"></div>
+    <p>Loading dashboard…</p>
+  </div>
+</div>
 
 <script>
-let scoreChart, rankChart;
+// ── State ────────────────────────────────────────────────
+let scoreChart, rankChart, eloChart;
 let allPlayers = [], allData = [], playerColors = {};
-let dateRangeStart = 0, dateRangeEnd = 100;
+let eloPlayers = [], eloData = [];
+let sessionPlayers = [];
+let sliderStart = 0, sliderEnd = 0, totalPoints = 0;
 
+// ── Colors ───────────────────────────────────────────────
 function generateDistinctColor(index, total) {
   const goldenRatio = 0.618033988749895;
   const hue = (index * goldenRatio * 360) % 360;
-  const saturation = 65 + (index % 3) * 10;
-  const lightness = 45 + (index % 4) * 5;
-  return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+  const sat = 60 + (index % 3) * 10;
+  const lit = 42 + (index % 4) * 6;
+  return `hsl(${hue}, ${sat}%, ${lit}%)`;
 }
 
-document.querySelector('.charts-grid').innerHTML = `<div class="chart-card"><div class="loading"><div class="loading-spinner"></div><p>Loading dashboard data...</p></div></div>`;
+// ── Init ─────────────────────────────────────────────────
+window.onload = () => {
+  if (typeof google !== 'undefined' && google.script && google.script.run) {
+    // Load session players, game data, and ELO history in parallel
+    let loaded = 0;
+    let sessionDone = false, gameDone = false, eloDone = false;
+    let sessionResult, gameResult, eloResult;
 
-if (typeof google !== 'undefined' && google.script && google.script.run) {
-  google.script.run
-    .withSuccessHandler(initializeDashboard)
-    .withFailureHandler(err => {
-      document.querySelector('.charts-grid').innerHTML = `<div class="chart-card"><div class="loading"><p style="color:#e53e3e;">Error: ${err.message}</p></div></div>`;
-    })
-    .getGameData();
-} else {
-  setTimeout(() => {
-    initializeDashboard({
-      players: ['Player 1','Player 2','Player 3','Player 4'],
-      data: Array.from({length:50},(_,i)=>({
-        time:`Oct ${i+1}`,
-        cumulative:[i*10+Math.random()*20,i*12+Math.random()*15,i*8+Math.random()*30,i*11+Math.random()*10],
-        ranks:[Math.ceil(Math.random()*4),Math.ceil(Math.random()*4),Math.ceil(Math.random()*4),Math.ceil(Math.random()*4)]
+    function tryInit() {
+      if (sessionDone && gameDone && eloDone) {
+        initializeDashboard(gameResult, eloResult, sessionResult);
+      }
+    }
+
+    google.script.run
+      .withSuccessHandler(r => { sessionResult = r; sessionDone = true; tryInit(); })
+      .withFailureHandler(() => { sessionResult = []; sessionDone = true; tryInit(); })
+      .getSessionPlayers();
+
+    google.script.run
+      .withSuccessHandler(r => { gameResult = r; gameDone = true; tryInit(); })
+      .withFailureHandler(err => {
+        document.getElementById('chartsGrid').innerHTML =
+          `<div class="loading-card"><p style="color:#e53e3e;">Error loading game data: ${err.message}</p></div>`;
+      })
+      .getGameData();
+
+    google.script.run
+      .withSuccessHandler(r => { eloResult = r; eloDone = true; tryInit(); })
+      .withFailureHandler(() => { eloResult = { players: [], data: [] }; eloDone = true; tryInit(); })
+      .getEloHistoryData();
+
+  } else {
+    // Dev preview
+    const mockPlayers = ['Monica','Brian','Kendall','Matt','Michael','Brown'];
+    const mockGameData = {
+      players: mockPlayers,
+      data: Array.from({length: 60}, (_, i) => ({
+        time: `Game ${i+1}`,
+        cumulative: mockPlayers.map((_, pi) => (i+1) * (pi * 3 + 5) + Math.sin(i*0.3+pi)*40),
+        ranks: mockPlayers.map((_, pi) => (pi + 1))
       }))
-    });
-  }, 1000);
+    };
+    const mockEloData = {
+      players: mockPlayers,
+      data: Array.from({length: 60}, (_, i) => ({
+        time: `Game ${i+1}`,
+        ratings: mockPlayers.map((_, pi) => 1500 + i * (pi % 2 === 0 ? 2 : -1.5) + Math.sin(i*0.4+pi)*20)
+      }))
+    };
+    initializeDashboard(mockGameData, mockEloData, ['Monica','Brian','Kendall']);
+  }
+};
+
+function initializeDashboard(gameRes, eloRes, session) {
+  allPlayers = gameRes.players;
+  allData    = gameRes.data;
+  eloPlayers = eloRes.players;
+  eloData    = eloRes.data;
+  sessionPlayers = session || [];
+
+  // Assign colors consistently across both chart sets
+  const allUnique = [...new Set([...allPlayers, ...eloPlayers])];
+  allUnique.forEach((p, i) => { playerColors[p] = generateDistinctColor(i, allUnique.length); });
+
+  // Build select2
+  const select = $('#playerSelect');
+  allPlayers.forEach(p => {
+    const selected = sessionPlayers.length > 0
+      ? sessionPlayers.includes(p)
+      : true;
+    select.append(new Option(p, p, selected, selected));
+  });
+  select.select2({ placeholder: 'Select players…', allowClear: false, closeOnSelect: false });
+
+  if (sessionPlayers.length > 0) {
+    document.getElementById('sessionNote').style.display = 'inline-flex';
+  }
+
+  // Init slider
+  totalPoints = allData.length - 1;
+  sliderStart = 0;
+  sliderEnd   = totalPoints;
+  initSlider();
+  updateDateLabels();
+
+  // Build chart scaffolding
+  buildChartCards();
+  drawCharts();
 }
 
-function initializeDashboard(res) {
-  allPlayers = res.players;
-  allData = res.data;
-  allPlayers.forEach((p,i) => { playerColors[p] = generateDistinctColor(i, allPlayers.length); });
+// ── Custom Dual Slider ────────────────────────────────────
+function initSlider() {
+  const wrap       = document.getElementById('sliderWrap');
+  const thumbLeft  = document.getElementById('thumbLeft');
+  const thumbRight = document.getElementById('thumbRight');
 
-  const select = $('#playerSelect');
-  allPlayers.forEach(p => select.append(new Option(p, p, true, true)));
-  select.select2({ placeholder: 'Select players', allowClear: false, closeOnSelect: false, width: '100%' });
+  updateSliderUI();
 
-  const startSlider = document.getElementById('startSlider');
-  const endSlider = document.getElementById('endSlider');
-  startSlider.max = allData.length - 1;
-  endSlider.max = allData.length - 1;
-  startSlider.value = 0;
-  endSlider.value = allData.length - 1;
-  dateRangeStart = 0;
-  dateRangeEnd = allData.length - 1;
-  updateDateLabels(); updateSliderTrack();
+  let dragging = null;
 
-  startSlider.addEventListener('input', function() {
-    let val = parseInt(this.value);
-    if (val >= dateRangeEnd) { val = dateRangeEnd; this.value = val; }
-    dateRangeStart = val;
-    this.style.zIndex = "4"; endSlider.style.zIndex = "3";
-    updateDateLabels(); updateSliderTrack(); drawCharts();
+  function getPercent(clientX) {
+    const rect = wrap.getBoundingClientRect();
+    return Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+  }
+
+  function indexFromPercent(pct) {
+    return Math.round(pct * totalPoints);
+  }
+
+  function onMove(clientX) {
+    if (!dragging) return;
+    const pct = getPercent(clientX);
+    const idx = indexFromPercent(pct);
+    if (dragging === 'left') {
+      sliderStart = Math.min(idx, sliderEnd);
+    } else {
+      sliderEnd = Math.max(idx, sliderStart);
+    }
+    updateSliderUI();
+    updateDateLabels();
+    drawCharts();
+  }
+
+  // Mouse
+  thumbLeft.addEventListener('mousedown', e => { dragging = 'left'; thumbLeft.classList.add('dragging'); e.preventDefault(); });
+  thumbRight.addEventListener('mousedown', e => { dragging = 'right'; thumbRight.classList.add('dragging'); e.preventDefault(); });
+  document.addEventListener('mousemove', e => onMove(e.clientX));
+  document.addEventListener('mouseup', () => {
+    if (dragging) {
+      document.getElementById('thumb' + (dragging === 'left' ? 'Left' : 'Right')).classList.remove('dragging');
+      dragging = null;
+    }
   });
-  endSlider.addEventListener('input', function() {
-    let val = parseInt(this.value);
-    if (val <= dateRangeStart) { val = dateRangeStart; this.value = val; }
-    dateRangeEnd = val;
-    this.style.zIndex = "4"; startSlider.style.zIndex = "3";
-    updateDateLabels(); updateSliderTrack(); drawCharts();
+
+  // Touch
+  thumbLeft.addEventListener('touchstart', e => { dragging = 'left'; thumbLeft.classList.add('dragging'); e.preventDefault(); }, { passive: false });
+  thumbRight.addEventListener('touchstart', e => { dragging = 'right'; thumbRight.classList.add('dragging'); e.preventDefault(); }, { passive: false });
+  document.addEventListener('touchmove', e => { if (dragging) onMove(e.touches[0].clientX); }, { passive: true });
+  document.addEventListener('touchend', () => {
+    if (dragging) {
+      document.getElementById('thumb' + (dragging === 'left' ? 'Left' : 'Right')).classList.remove('dragging');
+      dragging = null;
+    }
   });
 
-  document.querySelector('.charts-grid').innerHTML = `
-    <div class="chart-card">
-      <div class="chart-header"><span class="chart-icon">📈</span><h2>Cumulative Scores Over Time</h2></div>
-      <div class="chart-container"><canvas id="scoreChart"></canvas></div>
-      <div class="stats-bar" id="scoreStats"></div>
-    </div>
-    <div class="chart-card">
-      <div class="chart-header"><span class="chart-icon">🏆</span><h2>Rank Progression (Bump Chart)</h2></div>
-      <div class="chart-container"><canvas id="rankChart"></canvas></div>
-      <div class="stats-bar" id="rankStats"></div>
-    </div>`;
+  // Click on track to jump nearest thumb
+  wrap.addEventListener('mousedown', e => {
+    if (e.target === thumbLeft || e.target === thumbRight) return;
+    const pct = getPercent(e.clientX);
+    const idx = indexFromPercent(pct);
+    const distLeft  = Math.abs(idx - sliderStart);
+    const distRight = Math.abs(idx - sliderEnd);
+    if (distLeft <= distRight) {
+      dragging = 'left';
+      thumbLeft.classList.add('dragging');
+      sliderStart = Math.min(idx, sliderEnd);
+    } else {
+      dragging = 'right';
+      thumbRight.classList.add('dragging');
+      sliderEnd = Math.max(idx, sliderStart);
+    }
+    updateSliderUI();
+    updateDateLabels();
+    drawCharts();
+  });
+}
 
-  drawCharts();
+function updateSliderUI() {
+  if (totalPoints <= 0) return;
+  const pctL = (sliderStart / totalPoints) * 100;
+  const pctR = (sliderEnd   / totalPoints) * 100;
+  document.getElementById('thumbLeft').style.left   = pctL + '%';
+  document.getElementById('thumbRight').style.left  = pctR + '%';
+  document.getElementById('sliderFill').style.left  = pctL + '%';
+  document.getElementById('sliderFill').style.width = (pctR - pctL) + '%';
 }
 
 function updateDateLabels() {
   if (!allData.length) return;
-  const s = allData[dateRangeStart].time || `Game ${dateRangeStart+1}`;
-  const e = allData[dateRangeEnd].time || `Game ${dateRangeEnd+1}`;
+  const s = allData[sliderStart] ? allData[sliderStart].time : `Game ${sliderStart + 1}`;
+  const e = allData[sliderEnd]   ? allData[sliderEnd].time   : `Game ${sliderEnd + 1}`;
   document.getElementById('startDateLabel').innerHTML = `🏁 From: <strong>${s}</strong>`;
-  document.getElementById('endDateLabel').innerHTML = `🛑 To: <strong>${e}</strong>`;
-}
-
-function updateSliderTrack() {
-  if (!allData.length) return;
-  const track = document.getElementById('sliderTrack');
-  const sp = (dateRangeStart / (allData.length-1)) * 100;
-  const ep = (dateRangeEnd / (allData.length-1)) * 100;
-  track.style.left = sp + '%';
-  track.style.width = (ep - sp) + '%';
+  document.getElementById('endDateLabel').innerHTML   = `🛑 To: <strong>${e}</strong>`;
 }
 
 function resetDateRange() {
-  const ss = document.getElementById('startSlider');
-  const es = document.getElementById('endSlider');
-  dateRangeStart = 0; dateRangeEnd = allData.length - 1;
-  ss.value = 0; es.value = allData.length - 1;
-  updateDateLabels(); updateSliderTrack(); drawCharts();
+  sliderStart = 0;
+  sliderEnd   = totalPoints;
+  updateSliderUI();
+  updateDateLabels();
+  drawCharts();
 }
 
+// ── Chart scaffolding ────────────────────────────────────
+function buildChartCards() {
+  document.getElementById('chartsGrid').innerHTML = `
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-header-left">
+          <h2>📈 Cumulative Scores</h2>
+          <p>Running total points per player over time</p>
+        </div>
+        <span class="chart-tag">Points</span>
+      </div>
+      <div class="chart-container"><canvas id="scoreChart"></canvas></div>
+      <div class="stats-bar" id="scoreStats"></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-header-left">
+          <h2>🏆 ELO Ratings Over Time</h2>
+          <p>Skill rating progression — post April 25, 2026</p>
+        </div>
+        <span class="chart-tag elo">ELO</span>
+      </div>
+      <div class="chart-container"><canvas id="eloChart"></canvas></div>
+      <div class="stats-bar" id="eloStats"></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-header-left">
+          <h2>🎯 Rank Progression</h2>
+          <p>Points rank over time (1 = leader)</p>
+        </div>
+        <span class="chart-tag rank">Rank</span>
+      </div>
+      <div class="chart-container"><canvas id="rankChart"></canvas></div>
+      <div class="stats-bar" id="rankStats"></div>
+    </div>
+  `;
+}
+
+// ── Draw all charts ──────────────────────────────────────
 function drawCharts() {
-  const selectedPlayers = $('#playerSelect').val() || [];
-  if (!selectedPlayers.length) return;
-  const filteredData = allData.slice(dateRangeStart, dateRangeEnd + 1);
-  if (!filteredData.length) return;
+  const selected = $('#playerSelect').val() || [];
+  if (!selected.length) return;
 
-  const labels = filteredData.map((d,i) => d.time || `Game ${dateRangeStart+i+1}`);
+  const filteredGame = allData.slice(sliderStart, sliderEnd + 1);
+  if (!filteredGame.length) return;
 
-  const scoreDatasets = selectedPlayers.map(player => ({
-    label: player,
-    data: filteredData.map(d => d.cumulative[allPlayers.indexOf(player)]),
-    borderColor: playerColors[player], backgroundColor: playerColors[player],
-    fill: false, tension: 0.3, borderWidth: 3,
-    pointRadius: 0, pointHoverRadius: 6,
-    pointBackgroundColor: playerColors[player], pointBorderColor: '#fff', pointBorderWidth: 2
+  drawScoreChart(selected, filteredGame);
+  drawEloChart(selected);
+  drawRankChart(selected, filteredGame);
+}
+
+// ── Cumulative score chart ────────────────────────────────
+function drawScoreChart(selected, filtered) {
+  const labels = filtered.map((d, i) => d.time || `Game ${sliderStart + i + 1}`);
+
+  const datasets = selected.map(p => ({
+    label: p,
+    data: filtered.map(d => d.cumulative[allPlayers.indexOf(p)]),
+    borderColor: playerColors[p],
+    backgroundColor: playerColors[p],
+    fill: false, tension: 0.3, borderWidth: 2.5,
+    pointRadius: 0, pointHoverRadius: 5,
+    pointBackgroundColor: playerColors[p], pointBorderColor: '#fff', pointBorderWidth: 2
   }));
 
   if (scoreChart) scoreChart.destroy();
-  scoreChart = new Chart(document.getElementById("scoreChart"), {
-    type: "line", data: { labels, datasets: scoreDatasets },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: { display: true, position: "bottom", labels: { padding: 15, font: { size: 12, weight: '600' }, usePointStyle: true, pointStyle: 'circle' } },
-        tooltip: { backgroundColor: 'rgba(0,0,0,0.8)', padding: 12, titleFont: { size: 14, weight: 'bold' }, bodyFont: { size: 13 } }
-      },
-      scales: {
-        x: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { maxRotation: 45, minRotation: 45, font: { size: 11 } } },
-        y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 12 } }, title: { display: true, text: 'Score', font: { size: 13, weight: 'bold' } } }
-      }
-    }
+  scoreChart = new Chart(document.getElementById('scoreChart'), {
+    type: 'line', data: { labels, datasets },
+    options: chartOptions('Score', false)
   });
 
-  const selectedIndices = selectedPlayers.map(p => allPlayers.indexOf(p));
-  updateScoreStats(selectedPlayers, selectedIndices, filteredData);
+  const last = filtered[filtered.length - 1];
+  const ranked = selected
+    .map(p => ({ p, v: last.cumulative[allPlayers.indexOf(p)] }))
+    .sort((a, b) => b.v - a.v);
+  document.getElementById('scoreStats').innerHTML = `
+    <div class="stat-item">Games: <span class="stat-value">${filtered.length}</span></div>
+    <div class="stat-item">Leader: <span class="stat-value" style="color:${playerColors[ranked[0].p]}">${ranked[0].p} (${ranked[0].v})</span></div>
+    <div class="stat-item">Showing: <span class="stat-value">${selected.length} / ${allPlayers.length} players</span></div>
+  `;
+}
 
-  const rankDatasets = selectedPlayers.map(player => ({
-    label: player,
-    data: filteredData.map(d => d.ranks[allPlayers.indexOf(player)]),
-    borderColor: playerColors[player], backgroundColor: playerColors[player],
-    fill: false, tension: 0.3, borderWidth: 3,
-    pointRadius: 0, pointHoverRadius: 6,
-    pointBackgroundColor: playerColors[player], pointBorderColor: '#fff', pointBorderWidth: 2
+// ── ELO chart ────────────────────────────────────────────
+function drawEloChart(selected) {
+  if (!eloData.length) {
+    document.getElementById('eloStats').innerHTML =
+      '<div class="stat-item" style="color:#e53e3e;">⚠️ Run <strong>Build ELO History</strong> from the menu first.</div>';
+    return;
+  }
+
+  // Filter ELO data by date range using allData timestamps as anchors
+  // Map the slider range to ELO data indices by matching timestamps
+  const startTime = allData[sliderStart] ? allData[sliderStart].time : null;
+  const endTime   = allData[sliderEnd]   ? allData[sliderEnd].time   : null;
+
+  // Find ELO rows within the date window (by index proportion if no exact match)
+  const eloStartIdx = 0;
+  const eloEndIdx   = eloData.length - 1;
+
+  // Use full ELO data but let user filter via date — approximate by proportional slice
+  const proportion = totalPoints > 0 ? sliderStart / totalPoints : 0;
+  const endProp    = totalPoints > 0 ? sliderEnd   / totalPoints : 1;
+  const eloS = Math.floor(proportion * eloEndIdx);
+  const eloE = Math.ceil(endProp    * eloEndIdx);
+  const filteredElo = eloData.slice(eloS, eloE + 1);
+
+  if (!filteredElo.length) return;
+
+  const labels = filteredElo.map(d => d.time);
+
+  const datasets = selected
+    .filter(p => eloPlayers.includes(p))
+    .map(p => {
+      const pIdx = eloPlayers.indexOf(p);
+      return {
+        label: p,
+        data: filteredElo.map(d => d.ratings[pIdx]),
+        borderColor: playerColors[p],
+        backgroundColor: playerColors[p],
+        fill: false, tension: 0.35, borderWidth: 2.5,
+        pointRadius: 0, pointHoverRadius: 5,
+        pointBackgroundColor: playerColors[p], pointBorderColor: '#fff', pointBorderWidth: 2
+      };
+    });
+
+  if (!datasets.length) return;
+
+  if (eloChart) eloChart.destroy();
+  eloChart = new Chart(document.getElementById('eloChart'), {
+    type: 'line', data: { labels, datasets },
+    options: chartOptions('ELO Rating', false, 1400, 1750)
+  });
+
+  const lastElo = filteredElo[filteredElo.length - 1];
+  const eloRanked = datasets
+    .map(d => ({ p: d.label, v: lastElo.ratings[eloPlayers.indexOf(d.label)] }))
+    .sort((a, b) => b.v - a.v);
+
+  if (eloRanked.length > 0) {
+    document.getElementById('eloStats').innerHTML = `
+      <div class="stat-item">Games tracked: <span class="stat-value">${filteredElo.length}</span></div>
+      <div class="stat-item">Top ELO: <span class="stat-value" style="color:${playerColors[eloRanked[0].p]}">${eloRanked[0].p} (${Math.round(eloRanked[0].v)})</span></div>
+      <div class="stat-item">Spread: <span class="stat-value">${Math.round(eloRanked[0].v - eloRanked[eloRanked.length-1].v)} pts</span></div>
+    `;
+  }
+}
+
+// ── Rank chart ───────────────────────────────────────────
+function drawRankChart(selected, filtered) {
+  const labels = filtered.map((d, i) => d.time || `Game ${sliderStart + i + 1}`);
+
+  const datasets = selected.map(p => ({
+    label: p,
+    data: filtered.map(d => d.ranks[allPlayers.indexOf(p)]),
+    borderColor: playerColors[p],
+    backgroundColor: playerColors[p],
+    fill: false, tension: 0.3, borderWidth: 2.5,
+    pointRadius: 0, pointHoverRadius: 5,
+    pointBackgroundColor: playerColors[p], pointBorderColor: '#fff', pointBorderWidth: 2
   }));
 
   if (rankChart) rankChart.destroy();
-  rankChart = new Chart(document.getElementById("rankChart"), {
-    type: "line", data: { labels, datasets: rankDatasets },
+  const opts = chartOptions('Rank (1 = Best)', true);
+  rankChart = new Chart(document.getElementById('rankChart'), {
+    type: 'line', data: { labels, datasets },
     options: {
-      responsive: true, maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
-      scales: {
-        y: { reverse: true, ticks: { stepSize: 1, font: { size: 12 } }, grid: { color: 'rgba(0,0,0,0.05)' }, title: { display: true, text: 'Rank (1 = Best)', font: { size: 13, weight: 'bold' } } },
-        x: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { maxRotation: 45, minRotation: 45, font: { size: 11 } } }
-      },
+      ...opts,
       plugins: {
-        legend: { display: true, position: "bottom", labels: { padding: 15, font: { size: 12, weight: '600' }, usePointStyle: true, pointStyle: 'circle' } },
-        tooltip: { backgroundColor: 'rgba(0,0,0,0.8)', padding: 12, titleFont: { size: 14, weight: 'bold' }, bodyFont: { size: 13 }, callbacks: { label: ctx => ctx.dataset.label + ': Rank ' + ctx.parsed.y } }
+        ...opts.plugins,
+        tooltip: {
+          ...opts.plugins.tooltip,
+          callbacks: { label: ctx => `${ctx.dataset.label}: Rank ${ctx.parsed.y}` }
+        }
       }
     }
   });
 
-  updateRankStats(selectedPlayers, selectedIndices, filteredData);
-}
-
-function updateScoreStats(selectedPlayers, selectedIndices, filteredData) {
-  if (!filteredData.length) return;
-  const last = filteredData[filteredData.length - 1];
-  const stats = selectedIndices.map(i => ({ player: allPlayers[i], score: last.cumulative[i] }));
-  stats.sort((a,b) => b.score - a.score);
-  const leader = stats[0];
-  document.getElementById('scoreStats').innerHTML = `
-    <div class="stat-item"><span>Games Shown:</span><span class="stat-value">${filteredData.length} / ${allData.length}</span></div>
-    <div class="stat-item"><span>Current Leader:</span><span class="stat-value" style="color:${playerColors[leader.player]}">${leader.player} (${leader.score.toFixed(1)})</span></div>
-    <div class="stat-item"><span>Players Shown:</span><span class="stat-value">${selectedPlayers.length} / ${allPlayers.length}</span></div>`;
-}
-
-function updateRankStats(selectedPlayers, selectedIndices, filteredData) {
-  if (!filteredData.length) return;
-  const first = filteredData[0], last = filteredData[filteredData.length - 1];
-  let biggestRiser = null, maxImprovement = -Infinity;
-  selectedIndices.forEach(i => {
-    const imp = first.ranks[i] - last.ranks[i];
-    if (imp > maxImprovement) { maxImprovement = imp; biggestRiser = allPlayers[i]; }
+  const first = filtered[0], last = filtered[filtered.length - 1];
+  let bestRiser = null, maxGain = -Infinity;
+  selected.forEach(p => {
+    const gain = (first.ranks[allPlayers.indexOf(p)] || 0) - (last.ranks[allPlayers.indexOf(p)] || 0);
+    if (gain > maxGain) { maxGain = gain; bestRiser = p; }
   });
   document.getElementById('rankStats').innerHTML = `
-    <div class="stat-item"><span>Games Shown:</span><span class="stat-value">${filteredData.length} / ${allData.length}</span></div>
-    ${biggestRiser && maxImprovement > 0 ? `<div class="stat-item"><span>Biggest Improver:</span><span class="stat-value" style="color:${playerColors[biggestRiser]}">${biggestRiser} (+${maxImprovement} ranks)</span></div>` : ''}
-    <div class="stat-item"><span>Players Shown:</span><span class="stat-value">${selectedPlayers.length} / ${allPlayers.length}</span></div>`;
+    <div class="stat-item">Games: <span class="stat-value">${filtered.length}</span></div>
+    ${bestRiser && maxGain > 0 ? `<div class="stat-item">Biggest riser: <span class="stat-value" style="color:${playerColors[bestRiser]}">${bestRiser} (+${maxGain})</span></div>` : ''}
+  `;
 }
 
+// ── Shared chart options factory ─────────────────────────
+function chartOptions(yLabel, reverseY, suggestedMin, suggestedMax) {
+  const yScale = {
+    reverse: !!reverseY,
+    grid: { color: 'rgba(0,0,0,0.04)' },
+    ticks: { font: { size: 11 }, color: '#718096' },
+    title: { display: true, text: yLabel, font: { size: 12, weight: '600' }, color: '#4a5568' }
+  };
+  if (suggestedMin !== undefined) yScale.suggestedMin = suggestedMin;
+  if (suggestedMax !== undefined) yScale.suggestedMax = suggestedMax;
+
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: {
+        display: true, position: 'bottom',
+        labels: { padding: 14, font: { size: 11, weight: '600' }, usePointStyle: true, pointStyle: 'circle', color: '#4a5568' }
+      },
+      tooltip: {
+        backgroundColor: 'rgba(26,32,44,0.9)',
+        padding: 10,
+        titleFont: { size: 13, weight: 'bold' },
+        bodyFont: { size: 12 },
+        cornerRadius: 8
+      }
+    },
+    scales: {
+      x: {
+        grid: { color: 'rgba(0,0,0,0.04)' },
+        ticks: { maxRotation: 40, minRotation: 40, font: { size: 10 }, color: '#a0aec0', maxTicksLimit: 20 }
+      },
+      y: yScale
+    }
+  };
+}
+
+// ── Helpers ──────────────────────────────────────────────
 function updateCharts() { drawCharts(); }
 function selectAll() { $('#playerSelect').val(allPlayers).trigger('change'); drawCharts(); }
-function clearAll() { $('#playerSelect').val(null).trigger('change'); if (scoreChart) scoreChart.destroy(); if (rankChart) rankChart.destroy(); }
+function clearAll()  { $('#playerSelect').val(null).trigger('change'); [scoreChart,rankChart,eloChart].forEach(c => c && c.destroy()); }
+function resetSessionPlayers() {
+  const defaults = sessionPlayers.length > 0 ? sessionPlayers : allPlayers;
+  $('#playerSelect').val(defaults).trigger('change');
+  drawCharts();
+}
 </script>
 </body>
 </html>
