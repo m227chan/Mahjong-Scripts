@@ -347,7 +347,7 @@
 
 <script>
 // ── State ────────────────────────────────────────────────
-let scoreChart, rankChart, eloChart;
+let scoreChart, rankChart, eloChart, avgEloChart;
 let allPlayers = [], allData = [], playerColors = {};
 let eloPlayers = [], eloData = [];
 let sessionPlayers = [];
@@ -586,6 +586,18 @@ function buildChartCards() {
     <div class="chart-card">
       <div class="chart-header">
         <div class="chart-header-left">
+          <h2>⚖️ Average ELO per Game Played</h2>
+          <p>Mean ELO rating normalised by games played — post April 25, 2026. Sorted highest to lowest.</p>
+        </div>
+        <span class="chart-tag elo">ELO Avg</span>
+      </div>
+      <div class="chart-container" style="height:320px;"><canvas id="avgEloChart"></canvas></div>
+      <div class="stats-bar" id="avgEloStats"></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-header-left">
           <h2>🎯 Rank Progression</h2>
           <p>Points rank over time (1 = leader)</p>
         </div>
@@ -607,6 +619,7 @@ function drawCharts() {
 
   drawScoreChart(selected, filteredGame);
   drawEloChart(selected);
+  drawAvgEloChart(selected);
   drawRankChart(selected, filteredGame);
 }
 
@@ -698,9 +711,17 @@ function drawEloChart(selected) {
     .filter(p => eloPlayers.includes(p))
     .map(p => {
       const pIdx = eloPlayers.indexOf(p);
+      // Carry forward the last known rating for games the player didn't participate in,
+      // so the line stays flat (not diagonal) across absences — same as the score chart.
+      let lastKnown = null;
+      const data = filteredElo.map(d => {
+        const r = d.ratings[pIdx];
+        if (r !== null && !isNaN(r)) lastKnown = r;
+        return lastKnown;
+      });
       return {
         label: p,
-        data: filteredElo.map(d => d.ratings[pIdx]),
+        data,
         borderColor: playerColors[p],
         backgroundColor: playerColors[p],
         fill: false, tension: 0.35, borderWidth: 2.5,
@@ -717,9 +738,19 @@ function drawEloChart(selected) {
     options: chartOptions('ELO Rating', false, 1400, 1750)
   });
 
-  const lastElo = filteredElo[filteredElo.length - 1];
+  // Find each player's last non-null rating within the filtered window
+  const lastKnownRating = {};
+  datasets.forEach(d => {
+    const pIdx = eloPlayers.indexOf(d.label);
+    for (let i = filteredElo.length - 1; i >= 0; i--) {
+      const r = filteredElo[i].ratings[pIdx];
+      if (r !== null && !isNaN(r)) { lastKnownRating[d.label] = r; break; }
+    }
+  });
+
   const eloRanked = datasets
-    .map(d => ({ p: d.label, v: lastElo.ratings[eloPlayers.indexOf(d.label)] }))
+    .map(d => ({ p: d.label, v: lastKnownRating[d.label] ?? null }))
+    .filter(d => d.v !== null)
     .sort((a, b) => b.v - a.v);
 
   if (eloRanked.length > 0) {
@@ -729,6 +760,138 @@ function drawEloChart(selected) {
       <div class="stat-item">Spread: <span class="stat-value">${Math.round(eloRanked[0].v - eloRanked[eloRanked.length-1].v)} pts</span></div>
     `;
   }
+}
+
+// ── Average ELO bar chart ────────────────────────────────
+function drawAvgEloChart(selected) {
+  if (!eloData.length) {
+    document.getElementById('avgEloStats').innerHTML =
+      '<div class="stat-item" style="color:#e53e3e;">⚠️ No ELO history data found.</div>';
+    return;
+  }
+
+  // Only consider players present in both the selection and the ELO dataset
+  const eligible = selected.filter(p => eloPlayers.includes(p));
+  if (!eligible.length) return;
+
+  // Compute per-player average ELO across ALL post-cutoff ELO history rows.
+  // eloData rows represent snapshots after each game, so we average every
+  // snapshot rating and also count how many snapshots each player appears in
+  // (i.e. games where their rating changed, meaning they participated).
+  // We use ALL eloData (not the slider window) because this is a career stat.
+  const sumMap   = {};  // player → sum of ratings across snapshots
+  const countMap = {};  // player → number of snapshots (games played in ELO era)
+  eligible.forEach(p => { sumMap[p] = 0; countMap[p] = 0; });
+
+  // Track each player's previous rating so we can detect participation.
+  // A player only participated in a game if their rating changed — non-participants
+  // have their rating carried forward unchanged in the ELO history snapshot.
+  eloData.forEach(row => {
+    eligible.forEach(p => {
+      const pIdx = eloPlayers.indexOf(p);
+      if (pIdx === -1) return;
+      const rating = row.ratings[pIdx];
+      if (rating === null || isNaN(rating)) return;  // null = didn't play
+      sumMap[p]   += rating;
+      countMap[p] += 1;
+    });
+  });
+
+  // Build sorted entries (highest avg first), skip players with 0 games
+  const entries = eligible
+    .map(p => ({
+      name:   p,
+      avg:    countMap[p] > 0 ? sumMap[p] / countMap[p] : null,
+      games:  countMap[p]
+    }))
+    .filter(e => e.avg !== null && e.games > 0)
+    .sort((a, b) => b.avg - a.avg);
+
+  if (!entries.length) {
+    document.getElementById('avgEloStats').innerHTML =
+      '<div class="stat-item" style="color:#a0aec0;">No ELO data for selected players.</div>';
+    return;
+  }
+
+  const labels = entries.map(e => e.name);
+  const values = entries.map(e => parseFloat(e.avg.toFixed(1)));
+  const colors = entries.map(e => playerColors[e.name] || '#667eea');
+
+  // Determine a tight y-axis range so small differences are visible
+  const minVal  = Math.min(...values);
+  const maxVal  = Math.max(...values);
+  const padding = Math.max((maxVal - minVal) * 0.4, 15); // at least 15 pts padding
+  const yMin    = Math.floor(minVal - padding);
+  const yMax    = Math.ceil(maxVal  + padding);
+
+  if (avgEloChart) avgEloChart.destroy();
+  avgEloChart = new Chart(document.getElementById('avgEloChart'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Avg ELO',
+        data: values,
+        backgroundColor: colors.map(c => c.replace(')', ', 0.75)').replace('hsl', 'hsla')),
+        borderColor: colors,
+        borderWidth: 2,
+        borderRadius: 6,
+        borderSkipped: false
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(26,32,44,0.9)',
+          padding: 10,
+          titleFont: { size: 13, weight: 'bold' },
+          bodyFont: { size: 12 },
+          cornerRadius: 8,
+          callbacks: {
+            label: ctx => {
+              const e = entries[ctx.dataIndex];
+              return [
+                `Avg ELO: ${ctx.parsed.y.toFixed(1)}`,
+                `Games in ELO era: ${e.games}`
+              ];
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: { font: { size: 12, weight: '600' }, color: '#4a5568' }
+        },
+        y: {
+          min: yMin,
+          max: yMax,
+          grid: { color: 'rgba(0,0,0,0.04)' },
+          ticks: { font: { size: 11 }, color: '#718096' },
+          title: {
+            display: true,
+            text: 'Average ELO Rating',
+            font: { size: 12, weight: '600' },
+            color: '#4a5568'
+          }
+        }
+      }
+    }
+  });
+
+  // Stats bar
+  const best  = entries[0];
+  const worst = entries[entries.length - 1];
+  const spread = (best.avg - worst.avg).toFixed(1);
+  document.getElementById('avgEloStats').innerHTML = `
+    <div class="stat-item">Highest avg: <span class="stat-value" style="color:${playerColors[best.name]}">${best.name} (${best.avg.toFixed(1)})</span></div>
+    <div class="stat-item">Lowest avg: <span class="stat-value" style="color:${playerColors[worst.name]}">${worst.name} (${worst.avg.toFixed(1)})</span></div>
+    <div class="stat-item">Spread: <span class="stat-value">${spread} pts</span></div>
+    <div class="stat-item">Players shown: <span class="stat-value">${entries.length}</span></div>
+  `;
 }
 
 // ── Rank chart ───────────────────────────────────────────
