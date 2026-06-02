@@ -1133,7 +1133,7 @@ function submitGame(scores) {
   const updatedState = applyIncrementalElo_(scores);
 
   // ── 4. Append one row to ELO History ─────────────────────
-  appendEloHistoryRow_(new Date(), updatedState.stateMap, updatedState.allPlayerNames);
+  appendEloHistoryRow_(new Date(), updatedState.stateMap, updatedState.allPlayerNames, Object.keys(scores));
 }
 
 // ============================================================
@@ -1579,10 +1579,12 @@ function buildEloHistory() {
       if (state.last5.length > 5) state.last5.shift();
     });
 
-    // Snapshot all ratings
+    // Snapshot only participants — non-participants get empty string so the
+    // dashboard can distinguish "played this game" from "sat it out".
     const snap = [gameDate];
+    const participantNames = new Set(participants.map(p => p.name));
     allPlayerNames.forEach(name => {
-      snap.push(eloState[name] ? Math.round(eloState[name].rating) : 1500);
+      snap.push(participantNames.has(name) ? Math.round(eloState[name].rating) : '');
     });
     historyRows.push(snap);
   }
@@ -1597,18 +1599,21 @@ function buildEloHistory() {
 // ============================================================
 // ELO HISTORY — Append one row (called after each new game)
 // ============================================================
-function appendEloHistoryRow_(gameDate, stateMap, allPlayerNames) {
+function appendEloHistoryRow_(gameDate, stateMap, allPlayerNames, participantNames) {
   const ss        = SpreadsheetApp.getActiveSpreadsheet();
   const histSheet = ss.getSheetByName('ELO History');
-  if (!histSheet) return; // Run buildEloHistory() first to create the sheet
+  if (!histSheet) return;
 
-  // Read the header row to respect whatever column order already exists
   const headerRow = histSheet.getRange(1, 1, 1, histSheet.getLastColumn()).getValues()[0];
-  const orderedPlayers = headerRow.slice(1).map(String); // skip the Datetime col
+  const orderedPlayers = headerRow.slice(1).map(String);
+  const participantSet = new Set(participantNames);
 
   const snap = [gameDate];
   orderedPlayers.forEach(name => {
-    snap.push(stateMap[name] ? Math.round(stateMap[name].rating) : 1500);
+    // Only write the rating if this player was in the game; blank otherwise
+    snap.push(participantSet.has(name) && stateMap[name]
+      ? Math.round(stateMap[name].rating)
+      : '');
   });
 
   const lastRow = histSheet.getLastRow();
@@ -1635,7 +1640,7 @@ function getEloHistoryData() {
     } else {
       time = String(rawTime) || 'Game ' + (i + 1);
     }
-    return { time, ratings: row.slice(1).map(Number) };
+    return { time, ratings: row.slice(1).map(v => (v === '' || v === null) ? null : Number(v)) };
   });
 
   return { players, data };
