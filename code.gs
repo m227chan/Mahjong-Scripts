@@ -13,6 +13,7 @@ function onOpen() {
     .addSeparator()
     .addItem("⚡ Recalculate ELO", "recalculateElo")
     .addItem("📖 How ELO Works", "showEloInfo")
+    // .addItem("🔄 Build ELO History (run once)", "buildEloHistory")
     .addToUi();
 
   // Auto-open the game sidebar on spreadsheet load
@@ -1101,12 +1102,12 @@ function submitGame(scores) {
   const ss         = SpreadsheetApp.getActiveSpreadsheet();
   const gamesSheet = ss.getSheetByName("Game Scores");
  
-  // ── 1. Read header row + find Totals row in ONE read ──────
-  const allData    = gamesSheet.getDataRange().getValues();
-  const headerRow  = allData[0];   // row 0: timestamps + player names
-  const numCols    = headerRow.length;
+  // ── 1. Read header + find Totals row ──────────────────────
+  const allData   = gamesSheet.getDataRange().getValues();
+  const headerRow = allData[0];
+  const numCols   = headerRow.length;
  
-  let totalsRowIdx = -1; // 0-based index into allData
+  let totalsRowIdx = -1;
   for (let i = allData.length - 1; i >= 1; i--) {
     if (String(allData[i][0]).trim().toLowerCase() === 'totals') {
       totalsRowIdx = i;
@@ -1114,36 +1115,22 @@ function submitGame(scores) {
     }
   }
  
-  // ── 2. Build new game row in memory ───────────────────────
+  // ── 2. Build and insert new game row ──────────────────────
   const tz       = ss.getSpreadsheetTimeZone();
   const datetime = Utilities.formatDate(new Date(), tz, "dd/MM/yyyy HH:mm:ss");
- 
-  const newRow = new Array(numCols).fill('');
+  const newRow   = new Array(numCols).fill('');
   newRow[0] = datetime;
   for (let c = 1; c < numCols; c++) {
-    const playerName = String(headerRow[c] || '').trim();
-    if (playerName && scores.hasOwnProperty(playerName)) {
-      newRow[c] = scores[playerName];
-    }
+    const name = String(headerRow[c] || '').trim();
+    if (name && scores.hasOwnProperty(name)) newRow[c] = scores[name];
   }
  
-  // ── 3. Insert row before Totals in ONE API call ───────────
-  // insertRowBefore is unavoidable to keep Totals at the bottom,
-  // but we immediately write the entire row as a single range write
-  // instead of N individual setValue() calls.
-  const totalsSheetRow = totalsRowIdx + 1; // 1-based
+  const totalsSheetRow = totalsRowIdx + 1;
   gamesSheet.insertRowBefore(totalsSheetRow);
- 
-  // After insert, the new blank row is at totalsSheetRow.
-  // Write the full row in one call.
   gamesSheet.getRange(totalsSheetRow, 1, 1, numCols).setValues([newRow]);
-  
-  sortLeaderboard();
-  // ── 4. Defer ELO recalc + sort (non-blocking) ─────────────
-  // This is the single biggest latency saving: ~15–17s removed
-  // from the user-facing hot path.
-  // scheduleDeferredRecalc_();
-  recalculateElo();
+ 
+  // ── 3. Incremental ELO (replaces full recalculateElo) ─────
+  applyIncrementalElo_(scores);
 }
 
 // ============================================================
@@ -1302,6 +1289,7 @@ function submitNewPlayer(playerName, icon) {
   sortLeaderboard();
   // scheduleDeferredRecalc_();
   recalculateElo();
+  showSessionSidebar();
 }
 
 // ============================================================
@@ -1465,4 +1453,180 @@ function getRawGameData() {
   });
 
   return { players, rows: sanitizedRows };
+}
+
+// ============================================================
+// ELO HISTORY — Build from scratch (run once to backfill)
+// ============================================================
+function buildEloHistory() {
+  const ss         = SpreadsheetApp.getActiveSpreadsheet();
+  const gamesSheet = ss.getSheetByName('Game Scores');
+  const lbSheet    = ss.getSheetByName('Leaderboard');
+
+  // Get or create ELO History sheet
+  let histSheet = ss.getSheetByName('ELO History');
+  if (!histSheet) {
+    histSheet = ss.insertSheet('ELO History');
+  } else {
+    histSheet.clearContents();
+  }
+
+  // Build player list from leaderboard col B
+  const lbData = lbSheet.getDataRange().getValues();
+  const allPlayerNames = lbData.slice(1)
+    .map(r => String(r[1] || '').trim())
+    .filter(Boolean);
+
+  // Write header row
+  const headerRow = ['Datetime', ...allPlayerNames];
+  histSheet.getRange(1, 1, 1, headerRow.length).setValues([headerRow]);
+
+  // Init ELO state
+  const eloState = {};
+  allPlayerNames.forEach(name => {
+    eloState[name] = { rating: ELO_STARTING_RATING, gamesPlayed: 0, peak: ELO_STARTING_RATING, last5: [] };
+  });
+
+  const gsData    = gamesSheet.getDataRange().getValues();
+  const gsHeaders = gsData[0];
+
+  const colToPlayer = {};
+  for (let c = 1; c < gsHeaders.length; c++) {
+    const name = String(gsHeaders[c] || '').trim();
+    if (name) colToPlayer[c] = name;
+  }
+
+  const ELO_CUTOFF = new Date('2026-04-25T00:00:00');
+  const historyRows = [];
+
+  for (let r = 1; r < gsData.length; r++) {
+    const row = gsData[r];
+    const firstCell = String(row[0] || '').trim().toLowerCase();
+    if (firstCell === 'totals' || firstCell === 'total' || firstCell === '') continue;
+
+    const gameDate = row[0] instanceof Date ? row[0] : new Date(row[0]);
+    if (isNaN(gameDate.getTime())) continue;
+
+    const isPreCutoff = gameDate < ELO_CUTOFF;
+
+    if (isPreCutoff) {
+      for (let c = 1; c < row.length; c++) {
+        const player = colToPlayer[c];
+        if (!player || !eloState[player]) continue;
+        const cell = row[c];
+        if (cell === '' || cell === null || cell === undefined) continue;
+        const score = Number(cell);
+        if (isNaN(score) || score === 0) continue;
+        eloState[player].gamesPlayed++;
+      }
+      continue;
+    }
+
+    // Post-cutoff: run ELO
+    const participants = [];
+    for (let c = 1; c < row.length; c++) {
+      const player = colToPlayer[c];
+      if (!player) continue;
+      const cell = row[c];
+      if (cell === '' || cell === null || cell === undefined) continue;
+      const score = Number(cell);
+      if (isNaN(score)) continue;
+      participants.push({ name: player, score });
+    }
+
+    if (participants.length < 2) continue;
+
+    const deltas = {};
+    participants.forEach(p => { deltas[p.name] = 0; });
+
+    for (let i = 0; i < participants.length; i++) {
+      for (let j = i + 1; j < participants.length; j++) {
+        const pA = participants[i], pB = participants[j];
+        const stA = eloState[pA.name], stB = eloState[pB.name];
+        if (!stA || !stB) continue;
+        const expA   = 1 / (1 + Math.pow(10, (stB.rating - stA.rating) / 400));
+        const actA   = getActual(pA.score, pB.score);
+        const matchK = (getK(stA.gamesPlayed) + getK(stB.gamesPlayed)) / 2;
+        const mult   = getSpreadMultiplier(pA.score, pB.score);
+        deltas[pA.name] += matchK * mult * (actA - expA);
+        deltas[pB.name] += matchK * mult * ((1 - actA) - (1 - expA));
+      }
+    }
+
+    participants.forEach(p => {
+      const state = eloState[p.name];
+      if (!state) return;
+      state.rating += deltas[p.name];
+      state.gamesPlayed++;
+      if (state.rating > state.peak) state.peak = state.rating;
+      state.last5.push(deltas[p.name]);
+      if (state.last5.length > 5) state.last5.shift();
+    });
+
+    // Snapshot all ratings
+    const snap = [gameDate];
+    allPlayerNames.forEach(name => {
+      snap.push(eloState[name] ? Math.round(eloState[name].rating) : 1500);
+    });
+    historyRows.push(snap);
+  }
+
+  if (historyRows.length > 0) {
+    histSheet.getRange(2, 1, historyRows.length, headerRow.length).setValues(historyRows);
+  }
+
+  SpreadsheetApp.getUi().alert('ELO History built: ' + historyRows.length + ' rows written.');
+}
+
+// ============================================================
+// ELO HISTORY — Append one row (called after each new game)
+// ============================================================
+function appendEloHistoryRow_(gameDate, eloStateSnapshot, allPlayerNames) {
+  const ss        = SpreadsheetApp.getActiveSpreadsheet();
+  const histSheet = ss.getSheetByName('ELO History');
+  if (!histSheet) return; // Sheet not created yet — run buildEloHistory() first
+
+  const lastRow = histSheet.getLastRow();
+  const snap = [gameDate];
+  allPlayerNames.forEach(name => {
+    snap.push(eloStateSnapshot[name] ? Math.round(eloStateSnapshot[name].rating) : 1500);
+  });
+  histSheet.getRange(lastRow + 1, 1, 1, snap.length).setValues([snap]);
+}
+
+// ============================================================
+// DASHBOARD — Serve ELO history data
+// ============================================================
+function getEloHistoryData() {
+  const ss        = SpreadsheetApp.getActiveSpreadsheet();
+  const histSheet = ss.getSheetByName('ELO History');
+  if (!histSheet) return { players: [], data: [] };
+
+  const raw     = histSheet.getDataRange().getValues();
+  const players = raw[0].slice(1).map(String);
+  const tz      = ss.getSpreadsheetTimeZone();
+
+  const data = raw.slice(1).map((row, i) => {
+    const rawTime = row[0];
+    let time;
+    if (rawTime instanceof Date) {
+      time = Utilities.formatDate(rawTime, tz, "MM/dd HH:mm");
+    } else {
+      time = String(rawTime) || 'Game ' + (i + 1);
+    }
+    return { time, ratings: row.slice(1).map(Number) };
+  });
+
+  return { players, data };
+}
+
+// ============================================================
+// DASHBOARD — Get session players for default selection
+// ============================================================
+function getSessionPlayers() {
+  const map = readSessionMap_();
+  const participants = map['participants']
+    ? map['participants'].split(',').map(s => s.trim()).filter(Boolean)
+    : [];
+  return participants;
 }
