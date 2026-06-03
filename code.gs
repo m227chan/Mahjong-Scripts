@@ -1229,7 +1229,7 @@ function submitNewPlayer(playerName, icon) {
       // G: Games lost
       `=IFERROR(COUNTIF(${gsColRange},"<0"),0)`,
       // H: W/L ratio
-      `=IF(INDIRECT("G"&ROW())=0,0,INDIRECT("F"&ROW())/INDIRECT("G"&ROW()))`,
+      `=IF(AND(INDIRECT("G"&ROW())=0,INDIRECT("F"&ROW())=0),0,IF(AND(INDIRECT("G"&ROW())=0,INDIRECT("F"&ROW())>=1),1,INDIRECT("F"&ROW())/INDIRECT("G"&ROW())))`,
       // I: W/L rank
       `=IFERROR(RANK(INDIRECT("H"&ROW()),H$2:H$${newLbRow},FALSE),"")`,
       // J: Best win
@@ -1297,9 +1297,10 @@ function submitNewPlayer(playerName, icon) {
     const newEloCol = histSheet.getLastColumn() + 1;
     histSheet.getRange(1, newEloCol).setValue(playerName);
     // Backfill all existing rows with 1500 (starting rating)
+    // Backfill all existing rows with empty string — player didn't exist yet
     const numHistRows = histSheet.getLastRow() - 1;
     if (numHistRows > 0) {
-      const backfill = Array.from({ length: numHistRows }, () => [ELO_STARTING_RATING]);
+      const backfill = Array.from({ length: numHistRows }, () => ['']);
       histSheet.getRange(2, newEloCol, numHistRows, 1).setValues(backfill);
     }
   }
