@@ -1255,11 +1255,17 @@ function calcScores() {
 }
 
 function submitWin(tableId) {
-  const scores = calcScores();
-  if (!scores) return;
-
   const btn = document.getElementById('submitWinBtn-' + tableId);
-  if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+  if (!btn || btn.disabled) return;   // ← guard against double-tap
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+
+  const scores = calcScores();
+  if (!scores) {
+    btn.disabled = false;
+    btn.textContent = 'Add Game ✓';
+    return;
+  }
 
   google.script.run
     .withSuccessHandler(() => {
@@ -1280,9 +1286,30 @@ function addDraw(tableId) {
   const scores = {};
   players.forEach(p => scores[p] = 0);
 
+  // Find the draw button and show loading state immediately
+  const tableCard = document.getElementById('table-' + tableId);
+  const drawBtn = tableCard ? tableCard.querySelector('.btn-draw') : null;
+  if (drawBtn) {
+    drawBtn.disabled = true;
+    drawBtn.textContent = '⏳ Saving...';
+  }
+
   google.script.run
-    .withSuccessHandler(() => showScoreFlash(scores, null))
-    .withFailureHandler(err => showToast('Error: ' + err.message))
+    .withSuccessHandler(() => {
+      if (drawBtn) {
+        drawBtn.disabled = false;
+        drawBtn.textContent = '✅ Draw saved!';
+        setTimeout(() => { drawBtn.textContent = '🤝 Draw (0 pts)'; }, 2000);
+      }
+      showScoreFlash(scores, null);
+    })
+    .withFailureHandler(err => {
+      if (drawBtn) {
+        drawBtn.disabled = false;
+        drawBtn.textContent = '🤝 Draw (0 pts)';
+      }
+      showToast('Error: ' + err.message);
+    })
     .submitGame(scores);
 }
 
