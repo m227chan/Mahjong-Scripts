@@ -347,7 +347,7 @@
 
 <script>
 // ── State ────────────────────────────────────────────────
-let scoreChart, rankChart, eloChart, avgEloChart;
+let scoreChart, rankChart, eloChart, avgEloChart, eloDistChart;
 let allPlayers = [], allData = [], playerColors = {};
 let eloPlayers = [], eloData = [];
 let sessionPlayers = [];
@@ -598,6 +598,18 @@ function buildChartCards() {
     <div class="chart-card">
       <div class="chart-header">
         <div class="chart-header-left">
+          <h2>🔔 ELO Distribution</h2>
+          <p>Where each player sits on the population curve — all-time current ratings. Not affected by date range.</p>
+        </div>
+        <span class="chart-tag elo">Distribution</span>
+      </div>
+      <div class="chart-container" style="height:360px;"><canvas id="eloDistChart"></canvas></div>
+      <div class="stats-bar" id="eloDistStats"></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-header-left">
           <h2>🎯 Rank Progression</h2>
           <p>Points rank over time (1 = leader)</p>
         </div>
@@ -620,6 +632,7 @@ function drawCharts() {
   drawScoreChart(selected, filteredGame);
   drawEloChart(selected);
   drawAvgEloChart(selected);
+  drawEloDistributionChart(selected);
   drawRankChart(selected, filteredGame);
 }
 
@@ -892,6 +905,190 @@ function drawAvgEloChart(selected) {
     <div class="stat-item">Spread: <span class="stat-value">${spread} pts</span></div>
     <div class="stat-item">Players shown: <span class="stat-value">${entries.length}</span></div>
   `;
+}
+
+// ── ELO Distribution (normal curve + player markers) ─────
+function drawEloDistributionChart(selected) {
+  const statsEl = document.getElementById('eloDistStats');
+
+  if (!eloData.length) {
+    statsEl.innerHTML = '<div class="stat-item" style="color:#e53e3e;">⚠️ No ELO history data.</div>';
+    return;
+  }
+
+  // Use every player's current (last known) ELO as the population.
+  // "Last known" = last non-null rating in eloData for each player.
+  const allCurrentRatings = {};
+  eloPlayers.forEach(p => {
+    const pIdx = eloPlayers.indexOf(p);
+    for (let i = eloData.length - 1; i >= 0; i--) {
+      const r = eloData[i].ratings[pIdx];
+      if (r !== null && !isNaN(r) && r > 0) { allCurrentRatings[p] = r; break; }
+    }
+  });
+
+  const population = Object.values(allCurrentRatings);
+  if (population.length < 2) {
+    statsEl.innerHTML = '<div class="stat-item" style="color:#a0aec0;">Not enough players for distribution.</div>';
+    return;
+  }
+
+  // Population stats
+  const mean = population.reduce((a, b) => a + b, 0) / population.length;
+  const variance = population.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / population.length;
+  const std = Math.sqrt(variance);
+
+  // Build normal curve x range: mean ± 3.5σ, 200 points
+  const xMin = mean - 3.5 * std;
+  const xMax = mean + 3.5 * std;
+  const steps = 200;
+  const step = (xMax - xMin) / steps;
+  const curveX = [], curveY = [];
+  for (let i = 0; i <= steps; i++) {
+    const x = xMin + i * step;
+    curveX.push(parseFloat(x.toFixed(1)));
+    curveY.push((1 / (std * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * Math.pow((x - mean) / std, 2)));
+  }
+
+  // Percentile function: what % of population is below a given rating
+  function percentile(rating) {
+    const below = population.filter(r => r < rating).length;
+    const equal = population.filter(r => r === rating).length;
+    return ((below + 0.5 * equal) / population.length) * 100;
+  }
+
+  // Selected players' markers — plotted as scatter points on the curve
+  const eligible = selected.filter(p => allCurrentRatings[p] !== undefined);
+  const scatterDatasets = eligible.map(p => {
+    const rating = allCurrentRatings[p];
+    const pct = percentile(rating);
+    const yOnCurve = (1 / (std * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * Math.pow((rating - mean) / std, 2));
+    return {
+      label: p,
+      data: [{ x: rating, y: yOnCurve }],
+      type: 'scatter',
+      backgroundColor: playerColors[p] || '#667eea',
+      borderColor: '#fff',
+      borderWidth: 2,
+      pointRadius: 9,
+      pointHoverRadius: 11,
+      _percentile: pct,
+      _rating: rating
+    };
+  });
+
+  // Mean reference line as a scatter dataset (vertical via annotation workaround:
+  // two points at x=mean, y=0 and y=peak)
+  const peakY = (1 / (std * Math.sqrt(2 * Math.PI)));
+  const meanLineData = [{ x: mean, y: 0 }, { x: mean, y: peakY }];
+
+  // Convert curve to {x,y} objects so parsing:false doesn't break the line
+  const curvePoints = curveX.map((x, i) => ({ x, y: curveY[i] }));
+
+  if (eloDistChart) eloDistChart.destroy();
+  eloDistChart = new Chart(document.getElementById('eloDistChart'), {
+    type: 'scatter',
+    data: {
+      datasets: [
+        {
+          label: 'Normal distribution fill',
+          data: curvePoints,
+          borderColor: 'transparent',
+          backgroundColor: 'rgba(102,126,234,0.07)',
+          fill: true,
+          showLine: true,
+          tension: 0.4,
+          borderWidth: 0,
+          pointRadius: 0,
+          pointHoverRadius: 0
+        },
+        {
+          label: 'Normal distribution line',
+          data: curvePoints,
+          borderColor: 'rgba(102,126,234,0.6)',
+          backgroundColor: 'transparent',
+          fill: false,
+          showLine: true,
+          tension: 0.4,
+          borderWidth: 2.5,
+          pointRadius: 0,
+          pointHoverRadius: 0
+        },
+        {
+          label: 'Population mean',
+          data: meanLineData,
+          type: 'scatter',
+          showLine: true,
+          borderColor: 'rgba(160,174,192,0.7)',
+          borderWidth: 1.5,
+          borderDash: [4, 4],
+          pointRadius: 0,
+          backgroundColor: 'transparent',
+          parsing: false
+        },
+        ...scatterDatasets
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      parsing: false,
+      interaction: { mode: 'nearest', intersect: true },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(26,32,44,0.92)',
+          padding: 10,
+          cornerRadius: 8,
+          titleFont: { size: 13, weight: 'bold' },
+          bodyFont: { size: 12 },
+          filter: item => item.datasetIndex >= 3,
+          callbacks: {
+            title: items => items[0]?.dataset?.label || '',
+            label: ctx => {
+              const ds = ctx.dataset;
+              return [
+                `ELO: ${Math.round(ds._rating)}`,
+                `Percentile: ${ds._percentile.toFixed(1)}%`
+              ];
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          type: 'linear',
+          min: xMin,
+          max: xMax,
+          grid: { color: 'rgba(0,0,0,0.04)' },
+          ticks: {
+            font: { size: 10 },
+            color: '#a0aec0',
+            callback: v => Math.round(v),
+            maxTicksLimit: 10
+          },
+          title: { display: true, text: 'ELO Rating', font: { size: 12, weight: '600' }, color: '#4a5568' }
+        },
+        y: {
+          display: false // hide y axis — probability density values aren't intuitive
+        }
+      }
+    }
+  });
+
+  // Stats bar: list selected players with their rating + percentile, sorted by percentile desc
+  const sortedEligible = [...eligible]
+    .map(p => ({ p, rating: allCurrentRatings[p], pct: percentile(allCurrentRatings[p]) }))
+    .sort((a, b) => b.pct - a.pct);
+
+  statsEl.innerHTML = [
+    `<div class="stat-item">Population: <span class="stat-value">${population.length} players</span></div>`,
+    `<div class="stat-item">Mean ELO: <span class="stat-value">${Math.round(mean)}</span></div>`,
+    `<div class="stat-item">Std dev: <span class="stat-value">±${Math.round(std)}</span></div>`,
+    ...sortedEligible.map(({ p, rating, pct }) =>
+      `<div class="stat-item"><span style="color:${playerColors[p]};font-weight:700;">${p}</span>: <span class="stat-value">${Math.round(rating)} (${pct.toFixed(1)}%ile)</span></div>`
+    )
+  ].join('');
 }
 
 // ── Rank chart ───────────────────────────────────────────
